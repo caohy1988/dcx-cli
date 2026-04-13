@@ -79,6 +79,12 @@ Structured output, typed errors, and an MCP bridge for AI agents.`,
 	// Register static commands.
 	app.registerJobsQueryCommand()
 
+	// Register profiles commands.
+	app.addProfilesCommands()
+
+	// Register MCP commands.
+	app.addMCPCommands()
+
 	return app
 }
 
