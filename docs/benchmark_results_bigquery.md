@@ -327,9 +327,13 @@ For `dcx`:
 ## Reproduction
 
 ```bash
-# Build dcx
-cargo build --release
-export PATH="target/release:$PATH"
+# Build dcx (Go)
+go build -o dcx ./cmd/dcx
+export PATH="$PWD:$PATH"
+
+# Note: these results were measured against the Rust reference
+# implementation (haiyuan-eng-google/bqx-cli). The Go implementation
+# must meet or beat these numbers before MVP release.
 
 # Seed benchmark data
 benchmarks/scripts/seed_bigquery.sh YOUR_PROJECT_ID

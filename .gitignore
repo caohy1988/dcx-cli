@@ -1,5 +1,5 @@
-# Binaries
-dcx
+# Binaries (output only, not source dirs)
+/dcx
 *.exe
 *.dll
 *.so

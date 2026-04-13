@@ -1,0 +1,49 @@
+# Benchmark environment bindings.
+#
+# The runner substitutes {placeholder} tokens in task command templates
+# with the values defined here. Update these for your project before
+# running benchmarks.
+
+# ── GCP project ──────────────────────────────────────────────────────
+project: "YOUR_PROJECT_ID"
+region: "us-central1"
+
+# ── BigQuery ─────────────────────────────────────────────────────────
+# Tier A: small public dataset
+bq_public_dataset_small: "bigquery-public-data.samples"
+bq_table_small: "shakespeare"
+
+# Tier B: medium public dataset
+bq_public_dataset_medium: "bigquery-public-data.usa_names"
+bq_table_medium: "usa_1910_2013"
+
+# Tier C: nested public dataset
+bq_public_dataset_nested: "bigquery-public-data.github_repos"
+bq_table_nested: "commits"
+
+# Tier D: private benchmark dataset (created by seed script)
+bq_benchmark_dataset: "dcx_benchmark"
+bq_table_narrow: "narrow_events"
+bq_table_wide: "wide_metrics"
+
+# Known-bad identifiers for error-injection tasks
+bq_nonexistent_dataset: "does_not_exist_dataset_xyz"
+bq_nonexistent_table: "does_not_exist_table_xyz"
+
+# ── Spanner ──────────────────────────────────────────────────────────
+spanner_instance: "dcx-bench"
+spanner_database: "bench-music"
+
+# Known-bad identifiers for error-injection tasks
+spanner_nonexistent_instance: "does-not-exist-instance-xyz"
+spanner_nonexistent_database: "does-not-exist-db-xyz"
+
+# ── Profiles ─────────────────────────────────────────────────────────
+# Profile name for the dcx-profiles-test differentiated task.
+# Create ~/.config/dcx/profiles/bench.yaml (see benchmarks/README.md § Seed Data)
+benchmark_profile: "bench"
+
+# ── Auth ─────────────────────────────────────────────────────────────
+# Auth source used for the benchmark run (ADC, service-account, token).
+# Recorded for reproducibility; not substituted into commands.
+auth_source: "ADC"
