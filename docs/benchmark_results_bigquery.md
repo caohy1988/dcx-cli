@@ -324,18 +324,19 @@ For `dcx`:
 - [Run 20260410-171926](../benchmarks/results/scorecards/20260410-171926-cdc4d94.md)
   — initial benchmark (dcx vs bq only, no json-minified variant)
 
-## Reproduction
+## Reproduction (Rust reference)
 
-> **Reference results.** These numbers were measured against the Rust
-> implementation ([haiyuan-eng-google/bqx-cli](https://github.com/haiyuan-eng-google/bqx-cli)).
-> The Go implementation must meet or beat these numbers before MVP release.
-> The benchmark runner and task specs are carried over and ready to use
-> once the Go command surface is implemented.
+These results were measured against the Rust implementation. To reproduce
+the exact numbers, use the Rust repo:
 
 ```bash
-# Build dcx (once Go implementation is functional)
-go build -o dcx ./cmd/dcx
-export PATH="$PWD:$PATH"
+# Clone the Rust reference implementation
+git clone https://github.com/haiyuan-eng-google/bqx-cli.git
+cd bqx-cli
+
+# Build
+cargo build --release
+export PATH="target/release:$PATH"
 
 # Seed benchmark data
 benchmarks/scripts/seed_bigquery.sh YOUR_PROJECT_ID
@@ -349,3 +350,17 @@ benchmarks/scripts/run_benchmarks.sh --tasks bigquery_overlap --trials 3 --cold-
 # Generate scorecard
 python3 benchmarks/scripts/score_results.py benchmarks/results/raw/<run-id>
 ```
+
+### Future: Go validation
+
+Once the Go command surface is implemented, run the same suite from this
+repo to validate parity:
+
+```bash
+go build -o dcx ./cmd/dcx
+export PATH="$PWD:$PATH"
+benchmarks/scripts/run_benchmarks.sh --tasks bigquery_overlap --trials 3 --cold-trials 1
+```
+
+The Go implementation must meet or beat the Rust baseline before MVP release.
+See [docs/go_mvp_plan.md](go_mvp_plan.md) for success criteria.
