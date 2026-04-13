@@ -38,8 +38,49 @@ type Profile struct {
 	DatabaseID string     `yaml:"database_id,omitempty" json:"database_id,omitempty"`
 	DatasetID  string     `yaml:"dataset_id,omitempty" json:"dataset_id,omitempty"`
 
+	// AlloyDB-specific.
+	ClusterID string `yaml:"cluster_id,omitempty" json:"cluster_id,omitempty"`
+
+	// Cloud SQL-specific.
+	DBType string `yaml:"db_type,omitempty" json:"db_type,omitempty"` // "mysql" or "postgresql"
+
 	// Looker-specific fields.
-	LookerInstanceID string `yaml:"looker_instance_id,omitempty" json:"looker_instance_id,omitempty"`
+	LookerInstanceID  string   `yaml:"looker_instance_id,omitempty" json:"looker_instance_id,omitempty"`
+	LookerInstanceURL string   `yaml:"looker_instance_url,omitempty" json:"looker_instance_url,omitempty"`
+	LookerExplores    []string `yaml:"looker_explores,omitempty" json:"looker_explores,omitempty"`
+	LookerClientID    string   `yaml:"looker_client_id,omitempty" json:"looker_client_id,omitempty"`
+	LookerClientSecret string  `yaml:"looker_client_secret,omitempty" json:"looker_client_secret,omitempty"`
+
+	// CA-specific fields.
+	ContextSetID string `yaml:"context_set_id,omitempty" json:"context_set_id,omitempty"`
+}
+
+// IsQueryDataSource returns true if this profile type uses the QueryData API
+// (Spanner, AlloyDB, CloudSQL) rather than the Chat/DataAgent API.
+func (p *Profile) IsQueryDataSource() bool {
+	switch p.SourceType {
+	case Spanner, AlloyDB, CloudSQL:
+		return true
+	default:
+		return false
+	}
+}
+
+// LoadByName loads a profile by name from the profiles directory.
+func LoadByName(name string) (*Profile, error) {
+	dir := ProfilesDir()
+	// Try name.yaml, then name.yml.
+	for _, ext := range []string{".yaml", ".yml"} {
+		path := filepath.Join(dir, name+ext)
+		if _, err := os.Stat(path); err == nil {
+			return LoadFile(path)
+		}
+	}
+	// Try loading the name as a direct file path.
+	if _, err := os.Stat(name); err == nil {
+		return LoadFile(name)
+	}
+	return nil, fmt.Errorf("profile not found: %s (searched %s)", name, dir)
 }
 
 // ProfilesDir returns the default profiles directory path.

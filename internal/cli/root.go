@@ -82,6 +82,15 @@ Structured output, typed errors, and an MCP bridge for AI agents.`,
 	// Register profiles commands.
 	app.addProfilesCommands()
 
+	// Register CA commands.
+	app.addCACommands()
+
+	// Register Data Cloud helper commands (schema describe, databases list via QueryData).
+	app.registerDataCloudHelperCommands()
+
+	// Register Looker Admin SDK commands (explores, dashboards).
+	app.registerLookerSDKCommands()
+
 	// Register MCP commands.
 	app.addMCPCommands()
 
