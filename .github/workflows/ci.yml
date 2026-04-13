@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build
+        run: go build -o dcx ./cmd/dcx
+
+      - name: Unit tests
+        run: go test ./internal/auth/ ./internal/contracts/ ./internal/errors/ ./internal/output/ ./internal/profiles/ ./internal/ca/ ./internal/discovery/ -v
+
+      - name: Eval suite (CI gate)
+        run: go test ./internal/eval/ -v -count=1

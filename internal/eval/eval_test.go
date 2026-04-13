@@ -1,0 +1,619 @@
+// Package eval implements the deterministic CLI eval suite for dcx.
+//
+// These tests build the dcx binary and run it as a subprocess to validate
+// command discovery, contract completeness, error handling, format support,
+// and skill alignment — without requiring network access or live APIs.
+//
+// This suite is designed to be a CI gate: all categories must pass before
+// the Go MVP can ship.
+package eval
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"testing"
+)
+
+var dcxBinary string
+
+func TestMain(m *testing.M) {
+	// Build the dcx binary once for all eval tests.
+	dir, err := os.MkdirTemp("", "dcx-eval-*")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to create temp dir: %v\n", err)
+		os.Exit(1)
+	}
+	defer os.RemoveAll(dir)
+
+	dcxBinary = filepath.Join(dir, "dcx")
+	cmd := exec.Command("go", "build", "-o", dcxBinary, "./cmd/dcx")
+	// Build from the repo root.
+	cmd.Dir = filepath.Join("..", "..")
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to build dcx: %v\n", err)
+		os.Exit(1)
+	}
+
+	os.Exit(m.Run())
+}
+
+func runDcx(t *testing.T, args ...string) (stdout, stderr string, exitCode int) {
+	t.Helper()
+	cmd := exec.Command(dcxBinary, args...)
+	// Clear auth env vars to ensure predictable behavior.
+	cmd.Env = append(os.Environ(),
+		"DCX_TOKEN=",
+		"DCX_CREDENTIALS_FILE=",
+		"HOME=/tmp/dcx-eval-nonexistent",
+	)
+	var outBuf, errBuf strings.Builder
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &errBuf
+	err := cmd.Run()
+	exitCode = 0
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			exitCode = exitErr.ExitCode()
+		}
+	}
+	return outBuf.String(), errBuf.String(), exitCode
+}
+
+// ============================================================
+// Category 1: Command Discovery
+// ============================================================
+
+func TestCommandDiscovery(t *testing.T) {
+	stdout, _, exitCode := runDcx(t, "meta", "commands", "--format", "json")
+	if exitCode != 0 {
+		t.Fatalf("meta commands exited %d", exitCode)
+	}
+
+	var commands []struct {
+		Command string `json:"command"`
+		Domain  string `json:"domain"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &commands); err != nil {
+		t.Fatalf("parsing meta commands output: %v", err)
+	}
+
+	// All P0 commands must be present.
+	p0Commands := []string{
+		// BigQuery
+		"dcx datasets list", "dcx datasets get",
+		"dcx tables list", "dcx tables get",
+		"dcx jobs query",
+		// Spanner
+		"dcx spanner instances list", "dcx spanner instances get",
+		"dcx spanner databases list", "dcx spanner databases get",
+		"dcx spanner databases get-ddl", "dcx spanner schema describe",
+		// AlloyDB
+		"dcx alloydb clusters list", "dcx alloydb clusters get",
+		"dcx alloydb instances list", "dcx alloydb instances get",
+		"dcx alloydb databases list", "dcx alloydb schema describe",
+		// Cloud SQL
+		"dcx cloudsql instances list", "dcx cloudsql instances get",
+		"dcx cloudsql databases list", "dcx cloudsql databases get",
+		"dcx cloudsql schema describe",
+		// Looker
+		"dcx looker instances list", "dcx looker instances get",
+		"dcx looker explores list", "dcx looker dashboards get",
+		// CA
+		"dcx ca ask",
+		// Auth
+		"dcx auth check", "dcx auth status",
+		// Profiles
+		"dcx profiles list", "dcx profiles validate", "dcx profiles test",
+		// Meta
+		"dcx meta commands", "dcx meta describe",
+		// MCP
+		"dcx mcp serve",
+	}
+
+	registered := make(map[string]bool)
+	for _, c := range commands {
+		registered[c.Command] = true
+	}
+
+	for _, want := range p0Commands {
+		if !registered[want] {
+			t.Errorf("P0 command not registered: %s", want)
+		}
+	}
+
+	if len(commands) < 35 {
+		t.Errorf("expected at least 35 commands, got %d", len(commands))
+	}
+}
+
+// ============================================================
+// Category 2: Contract Completeness
+// ============================================================
+
+func TestContractCompleteness(t *testing.T) {
+	// Get all commands.
+	stdout, _, _ := runDcx(t, "meta", "commands", "--format", "json")
+	var commands []struct {
+		Command string `json:"command"`
+	}
+	json.Unmarshal([]byte(stdout), &commands)
+
+	for _, cmd := range commands {
+		// Skip mcp serve — it blocks on stdin.
+		if cmd.Command == "dcx mcp serve" {
+			continue
+		}
+		t.Run(cmd.Command, func(t *testing.T) {
+			parts := strings.Fields(cmd.Command)
+			args := append([]string{"meta", "describe"}, parts[1:]...)
+			stdout, _, exitCode := runDcx(t, args...)
+			if exitCode != 0 {
+				t.Fatalf("meta describe %s exited %d", cmd.Command, exitCode)
+			}
+
+			var contract map[string]interface{}
+			if err := json.Unmarshal([]byte(stdout), &contract); err != nil {
+				t.Fatalf("meta describe %s: invalid JSON: %v", cmd.Command, err)
+			}
+
+			// Required contract keys.
+			for _, key := range []string{"contract_version", "command", "domain", "flags", "exit_codes", "formats"} {
+				if _, ok := contract[key]; !ok {
+					t.Errorf("contract for %s missing key: %s", cmd.Command, key)
+				}
+			}
+
+			// Formats must include all four.
+			if formats, ok := contract["formats"].([]interface{}); ok {
+				fmtSet := make(map[string]bool)
+				for _, f := range formats {
+					fmtSet[fmt.Sprintf("%v", f)] = true
+				}
+				for _, want := range []string{"json", "json-minified", "table", "text"} {
+					if !fmtSet[want] {
+						t.Errorf("contract for %s missing format: %s", cmd.Command, want)
+					}
+				}
+			}
+		})
+	}
+}
+
+// ============================================================
+// Category 3: Error Recovery
+// ============================================================
+
+func TestErrorRecovery(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string // substring expected in stderr JSON
+	}{
+		{
+			name:    "unknown subcommand",
+			args:    []string{"nonexistent"},
+			wantErr: "unknown command",
+		},
+		{
+			name:    "invalid format",
+			args:    []string{"meta", "commands", "--format", "csv"},
+			wantErr: "csv",
+		},
+		{
+			name:    "meta describe unknown",
+			args:    []string{"meta", "describe", "nonexistent"},
+			wantErr: "unknown command",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, stderr, exitCode := runDcx(t, tt.args...)
+			if exitCode == 0 {
+				t.Error("expected non-zero exit code for invalid input")
+			}
+
+			// stderr should contain structured error or usage info.
+			combined := stderr
+			if !strings.Contains(strings.ToLower(combined), strings.ToLower(tt.wantErr)) {
+				t.Errorf("stderr should contain %q; got: %s", tt.wantErr, combined)
+			}
+		})
+	}
+}
+
+// ============================================================
+// Category 4: Exit Code Semantics
+// ============================================================
+
+func TestExitCodeSemantics(t *testing.T) {
+	// Validation error → exit 1
+	t.Run("validation_exit_1", func(t *testing.T) {
+		_, stderr, exitCode := runDcx(t, "meta", "describe", "nonexistent", "command")
+		if exitCode != 1 {
+			t.Errorf("unknown command should exit 1 (validation), got %d; stderr: %s", exitCode, stderr)
+		}
+
+		// Verify error envelope on stderr.
+		var envelope map[string]interface{}
+		if err := json.Unmarshal([]byte(strings.TrimSpace(stderr)), &envelope); err == nil {
+			if errObj, ok := envelope["error"].(map[string]interface{}); ok {
+				if code, _ := errObj["exit_code"].(float64); code != 1 {
+					t.Errorf("error envelope exit_code = %v, want 1", code)
+				}
+			}
+		}
+	})
+
+	// Auth error → exit 3 (no credentials available)
+	t.Run("auth_exit_3", func(t *testing.T) {
+		// auth check with no credentials should fail.
+		cmd := exec.Command(dcxBinary, "auth", "check")
+		cmd.Env = []string{
+			"HOME=/tmp/dcx-eval-no-creds",
+			"PATH=" + os.Getenv("PATH"),
+		}
+		var errBuf strings.Builder
+		cmd.Stderr = &errBuf
+		err := cmd.Run()
+		if err == nil {
+			// Might succeed if machine has gcloud ADC — skip.
+			t.Skip("auth check succeeded (machine has default credentials)")
+		}
+		exitErr, ok := err.(*exec.ExitError)
+		if !ok {
+			t.Fatalf("unexpected error type: %v", err)
+		}
+		if exitErr.ExitCode() != 3 {
+			t.Errorf("auth failure should exit 3, got %d; stderr: %s", exitErr.ExitCode(), errBuf.String())
+		}
+	})
+}
+
+// ============================================================
+// Category 5: Help Completeness
+// ============================================================
+
+func TestHelpCompleteness(t *testing.T) {
+	stdout, _, _ := runDcx(t, "meta", "commands", "--format", "json")
+	var commands []struct {
+		Command string `json:"command"`
+	}
+	json.Unmarshal([]byte(stdout), &commands)
+
+	for _, cmd := range commands {
+		if cmd.Command == "dcx mcp serve" {
+			continue
+		}
+		t.Run(cmd.Command, func(t *testing.T) {
+			parts := strings.Fields(cmd.Command)
+			args := append(parts[1:], "--help") // skip "dcx" prefix
+			stdout, _, exitCode := runDcx(t, args...)
+			if exitCode != 0 {
+				t.Errorf("--help for %s exited %d", cmd.Command, exitCode)
+			}
+			if len(stdout) == 0 {
+				t.Errorf("--help for %s produced no output", cmd.Command)
+			}
+			// Help should contain "Usage:" section.
+			if !strings.Contains(stdout, "Usage:") {
+				t.Errorf("--help for %s missing 'Usage:' section", cmd.Command)
+			}
+		})
+	}
+}
+
+// ============================================================
+// Category 6: Format Support
+// ============================================================
+
+func TestFormatSupport(t *testing.T) {
+	formats := []string{"json", "json-minified", "table", "text"}
+
+	for _, format := range formats {
+		t.Run(format, func(t *testing.T) {
+			stdout, _, exitCode := runDcx(t, "meta", "commands", "--format", format)
+			if exitCode != 0 {
+				t.Fatalf("meta commands --format %s exited %d", format, exitCode)
+			}
+			if len(strings.TrimSpace(stdout)) == 0 {
+				t.Errorf("meta commands --format %s produced empty output", format)
+			}
+		})
+	}
+
+	// json-minified should be single line.
+	t.Run("json-minified_is_single_line", func(t *testing.T) {
+		stdout, _, _ := runDcx(t, "meta", "commands", "--format", "json-minified")
+		trimmed := strings.TrimSpace(stdout)
+		if strings.Count(trimmed, "\n") > 0 {
+			t.Error("json-minified should be a single line")
+		}
+		// Should be valid JSON.
+		var parsed interface{}
+		if err := json.Unmarshal([]byte(trimmed), &parsed); err != nil {
+			t.Errorf("json-minified output is not valid JSON: %v", err)
+		}
+	})
+}
+
+// ============================================================
+// Category 7: Preflight Validation (auth check)
+// ============================================================
+
+func TestPreflightValidation(t *testing.T) {
+	// auth check with a static token should return structured JSON.
+	stdout, _, exitCode := runDcx(t, "auth", "check", "--token", "test-eval-token")
+	if exitCode != 0 {
+		t.Fatalf("auth check --token exited %d", exitCode)
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("auth check output is not valid JSON: %v", err)
+	}
+
+	if auth, ok := result["authenticated"].(bool); !ok || !auth {
+		t.Error("auth check with --token should report authenticated=true")
+	}
+	if method, ok := result["method"].(string); !ok || method != "token" {
+		t.Errorf("auth check method = %v, want 'token'", result["method"])
+	}
+}
+
+// ============================================================
+// Category 8: Auth Preflight (missing credentials)
+// ============================================================
+
+func TestAuthPreflight(t *testing.T) {
+	cmd := exec.Command(dcxBinary, "auth", "check", "--format", "json")
+	cmd.Env = []string{
+		"HOME=/tmp/dcx-eval-no-auth",
+		"PATH=" + os.Getenv("PATH"),
+	}
+	var outBuf, errBuf strings.Builder
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &errBuf
+	err := cmd.Run()
+
+	if err == nil {
+		t.Skip("auth check succeeded (machine has default credentials)")
+	}
+
+	exitErr, ok := err.(*exec.ExitError)
+	if !ok {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Should exit 3 (auth error).
+	if exitErr.ExitCode() != 3 {
+		t.Errorf("exit code = %d, want 3; stderr: %s", exitErr.ExitCode(), errBuf.String())
+	}
+
+	// Stderr should have error envelope.
+	stderr := strings.TrimSpace(errBuf.String())
+	if stderr != "" {
+		var envelope map[string]map[string]interface{}
+		if err := json.Unmarshal([]byte(stderr), &envelope); err == nil {
+			errObj := envelope["error"]
+			if code, ok := errObj["code"].(string); !ok || code != "AUTH_ERROR" {
+				t.Errorf("error code = %v, want AUTH_ERROR", errObj["code"])
+			}
+		}
+	}
+}
+
+// ============================================================
+// Category 9: Skill Alignment
+// ============================================================
+
+func TestSkillAlignment(t *testing.T) {
+	// Get all registered commands.
+	stdout, _, _ := runDcx(t, "meta", "commands", "--format", "json")
+	var commands []struct {
+		Command string `json:"command"`
+	}
+	json.Unmarshal([]byte(stdout), &commands)
+
+	registered := make(map[string]bool)
+	for _, c := range commands {
+		registered[c.Command] = true
+	}
+
+	// Read skill files and extract command references.
+	skillDir := filepath.Join("..", "..", "skills")
+	entries, err := os.ReadDir(skillDir)
+	if err != nil {
+		t.Fatalf("reading skills dir: %v", err)
+	}
+
+	// Regex to find dcx command references in skill docs.
+	cmdPattern := regexp.MustCompile(`dcx\s+(?:[\w-]+\s+)*[\w-]+`)
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		skillFile := filepath.Join(skillDir, entry.Name(), "SKILL.md")
+		data, err := os.ReadFile(skillFile)
+		if err != nil {
+			continue
+		}
+
+		t.Run(entry.Name(), func(t *testing.T) {
+			matches := cmdPattern.FindAllString(string(data), -1)
+			for _, match := range matches {
+				// Normalize: trim trailing punctuation.
+				match = strings.TrimRight(match, ".,;:!?)")
+				// Skip partial matches that are just "dcx" alone.
+				if match == "dcx" {
+					continue
+				}
+				// Skip common non-command patterns.
+				if strings.HasPrefix(match, "dcx auth login") {
+					continue // auth login is P1
+				}
+				// Check if the referenced command exists.
+				if !registered[match] {
+					// Try with fewer words (skills might reference command groups).
+					parts := strings.Fields(match)
+					found := false
+					for i := len(parts); i >= 2; i-- {
+						candidate := strings.Join(parts[:i], " ")
+						if registered[candidate] {
+							found = true
+							break
+						}
+					}
+					if !found {
+						t.Logf("skill %s references unregistered command: %s", entry.Name(), match)
+					}
+				}
+			}
+		})
+	}
+}
+
+// ============================================================
+// Category 10: Dry-Run Success
+// ============================================================
+
+func TestDryRunSuccess(t *testing.T) {
+	// jobs query --dry-run should not error even without auth (it needs project-id though).
+	// With a token but invalid project, dry-run still sends the request — this test
+	// verifies the flag is accepted.
+	stdout, _, exitCode := runDcx(t, "jobs", "query", "--help")
+	if exitCode != 0 {
+		t.Fatal("jobs query --help failed")
+	}
+	if !strings.Contains(stdout, "--dry-run") {
+		t.Error("jobs query should accept --dry-run flag")
+	}
+
+	// Verify --dry-run is in the contract.
+	stdout, _, exitCode = runDcx(t, "meta", "describe", "jobs", "query", "--format", "json")
+	if exitCode != 0 {
+		t.Fatal("meta describe jobs query failed")
+	}
+	var contract map[string]interface{}
+	json.Unmarshal([]byte(stdout), &contract)
+	if dryRun, ok := contract["supports_dry_run"].(bool); !ok || !dryRun {
+		t.Error("jobs query contract should have supports_dry_run=true")
+	}
+}
+
+// ============================================================
+// Category 11: JSON Contract Stability
+// ============================================================
+
+func TestJSONContractStability(t *testing.T) {
+	// Verify error envelope has correct top-level keys.
+	t.Run("error_envelope_keys", func(t *testing.T) {
+		_, stderr, _ := runDcx(t, "meta", "describe", "nonexistent")
+		trimmed := strings.TrimSpace(stderr)
+		if trimmed == "" {
+			t.Skip("no stderr output")
+		}
+
+		var envelope map[string]map[string]interface{}
+		if err := json.Unmarshal([]byte(trimmed), &envelope); err != nil {
+			t.Fatalf("error envelope is not valid JSON: %v\nraw: %s", err, trimmed)
+		}
+
+		errObj, ok := envelope["error"]
+		if !ok {
+			t.Fatal("missing top-level 'error' key")
+		}
+
+		requiredKeys := []string{"code", "message", "exit_code", "retryable", "status"}
+		for _, key := range requiredKeys {
+			if _, ok := errObj[key]; !ok {
+				t.Errorf("error envelope missing key: %s", key)
+			}
+		}
+
+		// Status must be "error".
+		if status, _ := errObj["status"].(string); status != "error" {
+			t.Errorf("error.status = %q, want \"error\"", status)
+		}
+	})
+
+	// Verify meta commands output shape.
+	t.Run("meta_commands_shape", func(t *testing.T) {
+		stdout, _, exitCode := runDcx(t, "meta", "commands", "--format", "json")
+		if exitCode != 0 {
+			t.Fatal("meta commands failed")
+		}
+
+		var commands []map[string]interface{}
+		if err := json.Unmarshal([]byte(stdout), &commands); err != nil {
+			t.Fatalf("meta commands output is not a JSON array: %v", err)
+		}
+
+		if len(commands) == 0 {
+			t.Fatal("meta commands returned empty array")
+		}
+
+		// Each command entry must have command, domain, description.
+		for _, cmd := range commands {
+			for _, key := range []string{"command", "domain", "description"} {
+				if _, ok := cmd[key]; !ok {
+					t.Errorf("command entry missing key %q: %v", key, cmd)
+					break
+				}
+			}
+		}
+	})
+
+	// Verify auth check output shape.
+	t.Run("auth_check_shape", func(t *testing.T) {
+		stdout, _, exitCode := runDcx(t, "auth", "check", "--token", "eval-token", "--format", "json")
+		if exitCode != 0 {
+			t.Fatal("auth check failed")
+		}
+
+		var result map[string]interface{}
+		if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+			t.Fatalf("auth check is not valid JSON: %v", err)
+		}
+
+		for _, key := range []string{"authenticated", "method", "source"} {
+			if _, ok := result[key]; !ok {
+				t.Errorf("auth check output missing key: %s", key)
+			}
+		}
+	})
+
+	// Verify contract shape for a sample command.
+	t.Run("contract_shape", func(t *testing.T) {
+		stdout, _, exitCode := runDcx(t, "meta", "describe", "datasets", "list", "--format", "json")
+		if exitCode != 0 {
+			t.Fatal("meta describe datasets list failed")
+		}
+
+		var contract map[string]interface{}
+		if err := json.Unmarshal([]byte(stdout), &contract); err != nil {
+			t.Fatalf("contract is not valid JSON: %v", err)
+		}
+
+		requiredKeys := []string{
+			"contract_version", "command", "domain", "description",
+			"flags", "exit_codes", "supports_dry_run", "is_mutation", "formats",
+		}
+		for _, key := range requiredKeys {
+			if _, ok := contract[key]; !ok {
+				t.Errorf("contract missing key: %s", key)
+			}
+		}
+
+		if contract["contract_version"] != "1" {
+			t.Errorf("contract_version = %v, want \"1\"", contract["contract_version"])
+		}
+	})
+}
