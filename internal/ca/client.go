@@ -79,8 +79,9 @@ func (c *Client) askChat(ctx context.Context, token string, profile *profiles.Pr
 	}
 
 	// Agent context (BigQuery with named agent).
+	// Agent resources live in locations/global regardless of chat endpoint location.
 	if agent != "" {
-		agentResource := fmt.Sprintf("projects/%s/locations/%s/dataAgents/%s", projectID, location, agent)
+		agentResource := fmt.Sprintf("projects/%s/locations/global/dataAgents/%s", projectID, agent)
 		body["data_agent_context"] = map[string]interface{}{
 			"data_agent": agentResource,
 		}
@@ -291,17 +292,15 @@ func (c *Client) AskQueryDataRaw(ctx context.Context, token string, profile *pro
 	return raw, nil
 }
 
-// CreateAgent creates a new BigQuery data agent via the Data Agents v1alpha API.
-// The API returns a long-running Operation; we surface the operation name.
-// Docs: https://docs.cloud.google.com/gemini/data-agents/reference/rest/v1alpha/projects.locations.dataAgents/create
 // CreateAgent creates a data agent synchronously via :createSync.
 // Uses publishedContext (not stagingContext) matching the Rust implementation.
+// Agent management uses locations/global (not regional like chat/queryData).
 func (c *Client) CreateAgent(ctx context.Context, token, projectID, location string, opts CreateAgentOpts) (*CreateAgentResult, error) {
 	if projectID == "" {
 		return nil, fmt.Errorf("project ID is required")
 	}
 	if location == "" {
-		location = "us"
+		location = "global"
 	}
 
 	tableRefs := buildBQTableRefs(strings.Join(opts.Tables, ","))
@@ -374,13 +373,13 @@ func (c *Client) CreateAgent(ctx context.Context, token, projectID, location str
 }
 
 // ListAgents lists all data agents in the given project, handling pagination.
-// Docs: https://docs.cloud.google.com/gemini/data-agents/reference/rest/v1alpha/projects.locations.dataAgents/list
+// Agent management uses locations/global (not regional like chat/queryData).
 func (c *Client) ListAgents(ctx context.Context, token, projectID, location string) (*AgentsListResult, error) {
 	if projectID == "" {
 		return nil, fmt.Errorf("project ID is required")
 	}
 	if location == "" {
-		location = "us"
+		location = "global"
 	}
 
 	baseURL := fmt.Sprintf(dataAgentsURLFmt, projectID, location)
@@ -459,18 +458,15 @@ func extractErrorMessage(body []byte, statusCode int) string {
 	return fmt.Sprintf("API returned HTTP %d", statusCode)
 }
 
-// AddVerifiedQuery adds example queries to an existing data agent via PATCH.
-// There is no standalone addVerifiedQuery method in the API; verified queries
-// (exampleQueries) are fields on the DataAgent resource updated via patch.
-// Docs: https://docs.cloud.google.com/gemini/data-agents/reference/rest/v1alpha/projects.locations.dataAgents
 // AddVerifiedQuery appends example queries to an existing agent via GET + :updateSync.
 // Uses publishedContext (matching Rust implementation).
+// Agent management uses locations/global (not regional like chat/queryData).
 func (c *Client) AddVerifiedQuery(ctx context.Context, token, projectID, location string, opts PatchAgentOpts) (*AddVerifiedQueryResult, error) {
 	if projectID == "" {
 		return nil, fmt.Errorf("project ID is required")
 	}
 	if location == "" {
-		location = "us"
+		location = "global"
 	}
 
 	// 1. GET the existing agent to read current exampleQueries.
