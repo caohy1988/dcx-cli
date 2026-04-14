@@ -4,7 +4,7 @@ An agent-native CLI for Google Cloud's Data Cloud, built in Go.
 One binary for BigQuery, Spanner, AlloyDB, Cloud SQL, and Looker —
 with structured output, typed errors, and an MCP bridge for AI agents.
 
-> **Status:** Go MVP functional — 35 commands across 9 domains.
+> **Status:** Go MVP functional — 35 commands across 10 domains.
 > Benchmarked at **5x faster** than `bq` with token cost within 6%.
 > See [docs/benchmark_results_bigquery.md](docs/benchmark_results_bigquery.md)
 > for measured results.
@@ -159,7 +159,7 @@ Every command has a machine-readable contract accessible via
   "domain": "bigquery",
   "flags": [...],
   "exit_codes": {"0": "success", "2": "api_error", "3": "auth_error", "4": "not_found"},
-  "supports_dry_run": true,
+  "supports_dry_run": false,
   "is_mutation": false
 }
 ```
