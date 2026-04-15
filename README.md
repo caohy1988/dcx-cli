@@ -4,7 +4,7 @@ An agent-native CLI for Google Cloud's Data Cloud, built in Go.
 One binary for BigQuery, Spanner, AlloyDB, Cloud SQL, and Looker —
 with structured output, typed errors, and an MCP bridge for AI agents.
 
-> **Status:** Go MVP functional — 66 commands across 11 domains.
+> **Status:** Go MVP functional — 70 commands across 11 domains.
 > Benchmarked at **5x faster** than `bq` with token cost within 6%.
 > See [docs/benchmark_results_bigquery.md](docs/benchmark_results_bigquery.md)
 > for measured results.
@@ -54,11 +54,11 @@ source <(dcx completion bash)
 dcx mcp serve
 ```
 
-## Commands (66 total)
+## Commands (70 total)
 
 | Surface | Commands |
 |---|---|
-| **BigQuery** | `datasets list/get`, `tables list/get`, `jobs list/get/query`, `models list/get`, `routines list/get` |
+| **BigQuery** | `datasets list/get/insert/delete`, `tables list/get/insert/delete`, `jobs list/get/query`, `models list/get`, `routines list/get` |
 | **Spanner** | `instances list/get`, `databases list/get/get-ddl`, `backups list/get`, `databaseOperations list`, `instanceConfigs list/get`, `schema describe` |
 | **AlloyDB** | `clusters list/get`, `instances list/get`, `backups list/get`, `users list/get`, `operations list/get`, `databases list`, `schema describe` |
 | **Cloud SQL** | `instances list/get`, `databases list/get`, `backupRuns list/get`, `users list/get`, `operations list/get`, `flags list`, `tiers list`, `schema describe` |
@@ -147,7 +147,7 @@ dcx generates commands from bundled Google Cloud Discovery Documents
 
 | Service | Namespace | Discovery Doc | Commands |
 |---------|-----------|---------------|----------|
-| BigQuery | _(top-level)_ | `bigquery/v2` | datasets, tables, jobs, models, routines |
+| BigQuery | _(top-level)_ | `bigquery/v2` | datasets (CRUD), tables (CRUD), jobs, models, routines |
 | Spanner | `spanner` | `spanner/v1` | instances, databases, backups, databaseOperations, instanceConfigs |
 | AlloyDB | `alloydb` | `alloydb/v1` | clusters, instances, backups, users, operations |
 | Cloud SQL | `cloudsql` | `sqladmin/v1` | instances, databases, backupRuns, users, operations, flags, tiers |

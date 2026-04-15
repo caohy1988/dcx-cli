@@ -18,8 +18,8 @@ func TestParseBigQueryDiscovery(t *testing.T) {
 		t.Fatalf("Parse: %v", err)
 	}
 
-	if len(commands) != 10 {
-		t.Errorf("expected 10 commands, got %d", len(commands))
+	if len(commands) != 14 {
+		t.Errorf("expected 14 commands, got %d", len(commands))
 		for _, cmd := range commands {
 			t.Logf("  %s", cmd.CommandPath)
 		}
@@ -32,7 +32,8 @@ func TestParseBigQueryDiscovery(t *testing.T) {
 	}
 
 	expected := []string{
-		"datasets list", "datasets get", "tables list", "tables get",
+		"datasets list", "datasets get", "datasets insert", "datasets delete",
+		"tables list", "tables get", "tables insert", "tables delete",
 		"jobs list", "jobs get", "models list", "models get",
 		"routines list", "routines get",
 	}

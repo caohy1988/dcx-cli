@@ -10,8 +10,12 @@ func BigQueryConfig() *ServiceConfig {
 		AllowedMethods: []string{
 			"datasets.list",
 			"datasets.get",
+			"datasets.insert",
+			"datasets.delete",
 			"tables.list",
 			"tables.get",
+			"tables.insert",
+			"tables.delete",
 			"jobs.list",
 			"jobs.get",
 			"models.list",
