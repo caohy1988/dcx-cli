@@ -3,6 +3,7 @@ package cli
 import (
 	"os"
 
+	"github.com/haiyuan-eng-google/dcx-cli/internal/contracts"
 	"github.com/spf13/cobra"
 )
 
@@ -51,4 +52,13 @@ To load completions:
 	}
 
 	a.Root.AddCommand(cmd)
+
+	a.Registry.Register(contracts.BuildContract(
+		"completion", "cli",
+		"Generate shell completion script",
+		[]contracts.FlagContract{
+			{Name: "shell", Type: "string", Description: "Shell type: bash, zsh, fish, or powershell", Required: true},
+		},
+		false, false,
+	))
 }

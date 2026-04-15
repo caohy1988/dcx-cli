@@ -210,7 +210,7 @@ CLI can continue serving this surface during the Go migration.
 
 - `generate-skills`
 - Gemini manifest generation (`meta gemini-tools`)
-- shell completions
+- ~~shell completions~~ — **shipped** (PR #15)
 - ~~`ca create-agent`, `ca list-agents`, `ca add-verified-query`~~ — **shipped** (PR #7)
 - Model Armor sanitization (`--sanitize`)
 
