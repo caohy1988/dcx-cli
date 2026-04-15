@@ -94,6 +94,9 @@ Structured output, typed errors, and an MCP bridge for AI agents.`,
 	// Register MCP commands.
 	app.addMCPCommands()
 
+	// Register shell completion command.
+	app.addCompletionCommand()
+
 	return app
 }
 

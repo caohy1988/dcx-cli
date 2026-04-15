@@ -47,6 +47,9 @@ dcx ca ask "top errors yesterday" --profile my-spanner-profile
 dcx ca create-agent --name=sales-agent --tables=myproject.sales.orders --project-id=myproject
 dcx ca ask "revenue by region this quarter" --agent=sales-agent --project-id=myproject
 
+# Enable shell completions (bash/zsh/fish/powershell)
+source <(dcx completion bash)
+
 # Start MCP server for agents
 dcx mcp serve
 ```
@@ -72,7 +75,7 @@ Run `dcx meta commands` for the full machine-readable list.
 ### Deferred to P1
 
 - Agent Analytics SDK (12 commands, 6 evaluators)
-- `generate-skills`, Gemini manifest, shell completions
+- `generate-skills`, Gemini manifest
 - Model Armor sanitization
 
 ## Output Format
