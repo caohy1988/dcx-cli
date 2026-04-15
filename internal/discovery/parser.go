@@ -41,6 +41,7 @@ type discoveryParam struct {
 	Required    bool   `json:"required"`
 	Pattern     string `json:"pattern"`
 	Format      string `json:"format"`
+	Repeated    bool   `json:"repeated"`
 }
 
 // Parse extracts commands from a Discovery Document JSON according to
@@ -148,6 +149,7 @@ func convertParams(params map[string]discoveryParam) map[string]ApiParam {
 			Required:    p.Required,
 			Pattern:     p.Pattern,
 			Format:      p.Format,
+			Repeated:    p.Repeated,
 		}
 	}
 	return result
