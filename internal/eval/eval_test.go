@@ -132,6 +132,8 @@ func TestCommandDiscovery(t *testing.T) {
 		"dcx meta commands", "dcx meta describe",
 		// MCP
 		"dcx mcp serve",
+		// Completion
+		"dcx completion",
 	}
 
 	registered := make(map[string]bool)
@@ -145,8 +147,8 @@ func TestCommandDiscovery(t *testing.T) {
 		}
 	}
 
-	if len(commands) < 65 {
-		t.Errorf("expected at least 65 commands, got %d", len(commands))
+	if len(commands) < 66 {
+		t.Errorf("expected at least 66 commands, got %d", len(commands))
 	}
 }
 

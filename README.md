@@ -4,7 +4,7 @@ An agent-native CLI for Google Cloud's Data Cloud, built in Go.
 One binary for BigQuery, Spanner, AlloyDB, Cloud SQL, and Looker —
 with structured output, typed errors, and an MCP bridge for AI agents.
 
-> **Status:** Go MVP functional — 65 commands across 10 domains.
+> **Status:** Go MVP functional — 66 commands across 11 domains.
 > Benchmarked at **5x faster** than `bq` with token cost within 6%.
 > See [docs/benchmark_results_bigquery.md](docs/benchmark_results_bigquery.md)
 > for measured results.
@@ -47,11 +47,14 @@ dcx ca ask "top errors yesterday" --profile my-spanner-profile
 dcx ca create-agent --name=sales-agent --tables=myproject.sales.orders --project-id=myproject
 dcx ca ask "revenue by region this quarter" --agent=sales-agent --project-id=myproject
 
+# Enable shell completions (bash/zsh/fish/powershell)
+source <(dcx completion bash)
+
 # Start MCP server for agents
 dcx mcp serve
 ```
 
-## Commands (65 total)
+## Commands (66 total)
 
 | Surface | Commands |
 |---|---|
@@ -72,7 +75,7 @@ Run `dcx meta commands` for the full machine-readable list.
 ### Deferred to P1
 
 - Agent Analytics SDK (12 commands, 6 evaluators)
-- `generate-skills`, Gemini manifest, shell completions
+- `generate-skills`, Gemini manifest
 - Model Armor sanitization
 
 ## Output Format
