@@ -44,6 +44,7 @@ func (a *App) registerSpannerUpdateDdlCommand() {
 	var ddlStatements []string
 	var ddlFile string
 	var instanceID, databaseID string
+	var operationID, protoDescriptors string
 
 	cmd := &cobra.Command{
 		Use:   "update-ddl",
@@ -99,6 +100,12 @@ Examples:
 			apiURL := fmt.Sprintf(spannerDDLEndpoint, projectID, instanceID, databaseID)
 			body := map[string]interface{}{
 				"statements": statements,
+			}
+			if operationID != "" {
+				body["operationId"] = operationID
+			}
+			if protoDescriptors != "" {
+				body["protoDescriptors"] = protoDescriptors
 			}
 			bodyJSON, _ := json.Marshal(body)
 
@@ -174,6 +181,8 @@ Examples:
 	cmd.Flags().StringVar(&ddlFile, "ddl-file", "", "Path to file with semicolon-delimited DDL statements")
 	cmd.Flags().StringVar(&instanceID, "instance-id", "", "Spanner instance ID (required)")
 	cmd.Flags().StringVar(&databaseID, "database-id", "", "Spanner database ID (required)")
+	cmd.Flags().StringVar(&operationID, "operation-id", "", "Caller-supplied operation ID for idempotent retries")
+	cmd.Flags().StringVar(&protoDescriptors, "proto-descriptors", "", "Base64-encoded proto descriptors for CREATE/ALTER PROTO BUNDLE")
 
 	dbsCmd.AddCommand(cmd)
 
@@ -185,6 +194,8 @@ Examples:
 			{Name: "ddl-file", Type: "string", Description: "Path to file with semicolon-delimited DDL statements"},
 			{Name: "instance-id", Type: "string", Description: "Spanner instance ID", Required: true},
 			{Name: "database-id", Type: "string", Description: "Spanner database ID", Required: true},
+			{Name: "operation-id", Type: "string", Description: "Caller-supplied operation ID for idempotent retries"},
+			{Name: "proto-descriptors", Type: "string", Description: "Base64-encoded proto descriptors for CREATE/ALTER PROTO BUNDLE"},
 		},
 		true, true,
 	))
