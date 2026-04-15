@@ -91,7 +91,9 @@ func TestCommandDiscovery(t *testing.T) {
 	requiredCommands := []string{
 		// BigQuery (Discovery + static)
 		"dcx datasets list", "dcx datasets get",
+		"dcx datasets insert", "dcx datasets delete",
 		"dcx tables list", "dcx tables get",
+		"dcx tables insert", "dcx tables delete",
 		"dcx jobs list", "dcx jobs get", "dcx jobs query",
 		"dcx models list", "dcx models get",
 		"dcx routines list", "dcx routines get",
@@ -147,8 +149,8 @@ func TestCommandDiscovery(t *testing.T) {
 		}
 	}
 
-	if len(commands) < 66 {
-		t.Errorf("expected at least 66 commands, got %d", len(commands))
+	if len(commands) < 70 {
+		t.Errorf("expected at least 70 commands, got %d", len(commands))
 	}
 }
 
