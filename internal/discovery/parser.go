@@ -141,12 +141,18 @@ func extractMethods(
 func convertParams(params map[string]discoveryParam) map[string]ApiParam {
 	result := make(map[string]ApiParam, len(params))
 	for name, p := range params {
+		// Some Google Discovery docs mark params as "Required." in the
+		// description text without setting the required field. Detect this.
+		required := p.Required
+		if !required && strings.HasPrefix(p.Description, "Required.") {
+			required = true
+		}
 		result[name] = ApiParam{
 			Name:        name,
 			Type:        p.Type,
 			Description: p.Description,
 			Location:    p.Location,
-			Required:    p.Required,
+			Required:    required,
 			Pattern:     p.Pattern,
 			Format:      p.Format,
 			Repeated:    p.Repeated,
