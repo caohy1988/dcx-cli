@@ -22,6 +22,7 @@ func BigQueryConfig() *ServiceConfig {
 		GlobalParamMappings: map[string]string{
 			"projectId": "project-id",
 			"datasetId": "dataset-id",
+			"location":  "location",
 		},
 	}
 }
