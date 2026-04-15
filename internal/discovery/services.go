@@ -76,6 +76,8 @@ func AlloyDBConfig() *ServiceConfig {
 			"backups.get",
 			"users.list",
 			"users.get",
+			"users.create",
+			"users.delete",
 			"operations.list",
 			"operations.get",
 		},
