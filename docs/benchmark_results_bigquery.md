@@ -206,7 +206,7 @@ not yet been measured:
 
 | Surface | New tasks | Commands |
 |---|---|---|
-| **BigQuery** | jobs list, models list, routines list, mutation dry-runs | 9 new commands (jobs list/get, models list/get, routines list/get, datasets insert/delete, tables insert/delete) |
+| **BigQuery** | jobs list, models list, routines list, mutation dry-runs | 10 new commands (jobs list/get, models list/get, routines list/get, datasets insert/delete, tables insert/delete) |
 | **Spanner** | backups list, instance-configs list, database-operations list, update-ddl dry-run | 10 new commands (databases create/drop/update-ddl, backups list/get/create/delete, databaseOperations list, instanceConfigs list/get) |
 | **Cloud SQL** | instances list, flags list, tiers list, operations list | 17 commands total (CRUD for databases + users, backupRuns, operations, flags, tiers) |
 | **AlloyDB** | (no benchmark infra yet) | 14 commands total |
