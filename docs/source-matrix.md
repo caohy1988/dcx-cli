@@ -23,6 +23,7 @@ Cross-source command matrix for dcx v0.5.0.
 | `backups create\|delete` | — | Yes | — | — | — |
 | `backupRuns list\|get` | — | — | — | Yes | — |
 | `users list\|get` | — | — | Yes | Yes | — |
+| `users create\|delete` | — | — | Yes | Yes | — |
 | `users insert\|delete` | — | — | — | Yes | — |
 | `operations list\|get` | — | — | Yes | Yes | — |
 | `databaseOperations list` | — | Yes | — | — | — |
@@ -82,7 +83,7 @@ All commands support `--format json|json-minified|table|text`. Default is `json`
 
 ## Known Limitations
 
-- BigQuery datasets/tables, Cloud SQL databases/users, and Spanner databases/backups support write operations; all other source commands are read-only
+- BigQuery datasets/tables, Cloud SQL databases/users, Spanner databases/backups, and AlloyDB users support write operations; all other source commands are read-only
 - Schema describe uses CA QueryData — requires a valid profile
 - AlloyDB `--location` defaults to `-` (all locations), not `US`
 - Looker content commands use per-instance API, admin commands use GCP API

@@ -113,6 +113,7 @@ func TestCommandDiscovery(t *testing.T) {
 		"dcx alloydb databases list", "dcx alloydb schema describe",
 		"dcx alloydb backups list", "dcx alloydb backups get",
 		"dcx alloydb users list", "dcx alloydb users get",
+		"dcx alloydb users create", "dcx alloydb users delete",
 		"dcx alloydb operations list", "dcx alloydb operations get",
 		// Cloud SQL
 		"dcx cloudsql instances list", "dcx cloudsql instances get",
@@ -154,8 +155,8 @@ func TestCommandDiscovery(t *testing.T) {
 		}
 	}
 
-	if len(commands) < 79 {
-		t.Errorf("expected at least 79 commands, got %d", len(commands))
+	if len(commands) < 81 {
+		t.Errorf("expected at least 81 commands, got %d", len(commands))
 	}
 }
 
