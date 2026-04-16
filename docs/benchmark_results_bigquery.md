@@ -1,12 +1,12 @@
-# BigQuery CLI Benchmark Results: dcx vs bq
+# CLI Benchmark Results: dcx vs bq / gcloud
 
 Systematic latency, correctness, and token-efficiency comparison of `dcx`
-against the standard `bq` CLI across 12 BigQuery tasks covering metadata
-reads, SQL queries, dry-run validation, and error handling.
+against `bq` and `gcloud` CLIs across BigQuery and Spanner tasks covering
+metadata reads, SQL queries, mutations, dry-run validation, and error handling.
 
-## Current Results: Go dcx (v0.1.0)
+## BigQuery Baseline Results: Go dcx (v0.1.0)
 
-Run `20260413-163425-4e538fd` — Go implementation, 1 cold + 3 warm trials.
+Run `20260413-163425-4e538fd` — Go implementation, 12 BigQuery tasks, 1 cold + 3 warm trials.
 
 ### Key Numbers
 
@@ -301,12 +301,17 @@ unintended successful response instead of an error signal.
 
 ## Artifacts
 
-### Go run (current)
+### Expanded surface run (April 2026)
 
-- [Scorecard](../benchmarks/results/scorecards/20260413-163425-4e538fd.md)
+- [BigQuery scorecard (17 tasks)](../benchmarks/results/scorecards/20260416-122236-10be89e.md)
+- [Spanner scorecard (15 tasks)](../benchmarks/results/scorecards/20260416-122724-10be89e.md)
+
+### Baseline run (April 2026)
+
+- [BigQuery scorecard (12 tasks)](../benchmarks/results/scorecards/20260413-163425-4e538fd.md)
 
 Raw results (summary.json, results.ndjson, environment.json, per-trial
-stdout/stderr captures) are in `benchmarks/results/raw/20260413-163425-4e538fd/`
+stdout/stderr captures) are in `benchmarks/results/raw/<run-id>/`
 but gitignored. Reproduce locally with the instructions below.
 
 ### Reference
