@@ -52,6 +52,11 @@ By default writes to stdout. Use --out-dir to write files to a directory.`,
 				for _, d := range domains {
 					if cmds, ok := byDomain[d]; ok {
 						filtered[d] = cmds
+					} else {
+						dcxerrors.Emit(dcxerrors.InvalidConfig,
+							fmt.Sprintf("unknown domain %q", d),
+							fmt.Sprintf("Valid domains: %s", strings.Join(sortedDomainKeys(byDomain), ", ")))
+						return nil
 					}
 				}
 				byDomain = filtered
