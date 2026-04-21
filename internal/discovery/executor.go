@@ -279,6 +279,12 @@ func handleErrorResponse(resp *http.Response) error {
 		message = apiErr.Error.Message
 	}
 
+	// 429: emit structured rate-limit error with Retry-After.
+	if resp.StatusCode == 429 {
+		dcxerrors.EmitRateLimited(message, resp.Header.Get("Retry-After"))
+		return nil
+	}
+
 	code := dcxerrors.ErrorCodeFromHTTP(resp.StatusCode)
 	dcxerrors.Emit(code, message, "")
 	return nil

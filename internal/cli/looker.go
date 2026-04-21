@@ -49,7 +49,7 @@ func (a *App) addExploresListCmd(parent *cobra.Command) {
 
 			result, err := client.ListExplores(ctx)
 			if err != nil {
-				dcxerrors.Emit(dcxerrors.APIError, err.Error(), "")
+				dcxerrors.EmitAPIError(err)
 				return nil
 			}
 
@@ -97,7 +97,7 @@ func (a *App) addDashboardsGetCmd(parent *cobra.Command) {
 
 			result, err := client.GetDashboard(ctx, dashboardID)
 			if err != nil {
-				dcxerrors.Emit(dcxerrors.APIError, err.Error(), "")
+				dcxerrors.EmitAPIError(err)
 				return nil
 			}
 

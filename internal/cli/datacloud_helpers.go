@@ -137,7 +137,7 @@ func (a *App) schemaDescribeRunE(profileName *string, sourceType profiles.Source
 		client := ca.NewClient(nil)
 		result, err := datacloud.SchemaDescribe(ctx, client, tok.AccessToken, profile)
 		if err != nil {
-			dcxerrors.Emit(dcxerrors.APIError, err.Error(), "")
+			dcxerrors.EmitAPIError(err)
 			return nil
 		}
 
@@ -174,7 +174,7 @@ func (a *App) databasesListRunE(profileName *string, sourceType profiles.SourceT
 		client := ca.NewClient(nil)
 		result, err := datacloud.DatabasesList(ctx, client, tok.AccessToken, profile)
 		if err != nil {
-			dcxerrors.Emit(dcxerrors.APIError, err.Error(), "")
+			dcxerrors.EmitAPIError(err)
 			return nil
 		}
 

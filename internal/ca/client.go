@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strings"
 
+	dcxerrors "github.com/haiyuan-eng-google/dcx-cli/internal/errors"
 	"github.com/haiyuan-eng-google/dcx-cli/internal/profiles"
 )
 
@@ -958,7 +959,7 @@ func readAPIError(resp *http.Response) error {
 	if json.Unmarshal(body, &apiErr) == nil && apiErr.Error.Message != "" {
 		message = apiErr.Error.Message
 	}
-	return fmt.Errorf("%s", message)
+	return &dcxerrors.APIHTTPError{StatusCode: resp.StatusCode, Message: message, RetryAfter: resp.Header.Get("Retry-After")}
 }
 
 func sourceName(st profiles.SourceType) string {

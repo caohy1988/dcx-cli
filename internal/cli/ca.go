@@ -139,8 +139,7 @@ func (a *App) caAskCmd() *cobra.Command {
 
 			result, err := client.AskStream(ctx, tok.AccessToken, profile, question, agent, tables, cb)
 			if err != nil {
-				code := dcxerrors.APIError
-				dcxerrors.Emit(code, err.Error(), "")
+				dcxerrors.EmitAPIError(err)
 				return nil
 			}
 
@@ -222,7 +221,7 @@ func (a *App) caCreateAgentCmd() *cobra.Command {
 			client := ca.NewClient(nil)
 			result, err := client.CreateAgent(ctx, tok.AccessToken, projectID, a.Opts.Location, opts)
 			if err != nil {
-				dcxerrors.Emit(dcxerrors.APIError, err.Error(), "")
+				dcxerrors.EmitAPIError(err)
 				return nil
 			}
 
@@ -271,7 +270,7 @@ func (a *App) caListAgentsCmd() *cobra.Command {
 			client := ca.NewClient(nil)
 			result, err := client.ListAgents(ctx, tok.AccessToken, projectID, a.Opts.Location)
 			if err != nil {
-				dcxerrors.Emit(dcxerrors.APIError, err.Error(), "")
+				dcxerrors.EmitAPIError(err)
 				return nil
 			}
 
@@ -332,7 +331,7 @@ func (a *App) caAddVerifiedQueryCmd() *cobra.Command {
 				},
 			})
 			if err != nil {
-				dcxerrors.Emit(dcxerrors.APIError, err.Error(), "")
+				dcxerrors.EmitAPIError(err)
 				return nil
 			}
 

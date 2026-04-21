@@ -153,6 +153,10 @@ func ExecuteQuery(
 		if json.Unmarshal(body, &apiErr) == nil && apiErr.Error.Message != "" {
 			message = apiErr.Error.Message
 		}
+		if resp.StatusCode == 429 {
+			dcxerrors.EmitRateLimited(message, resp.Header.Get("Retry-After"))
+			return nil
+		}
 		code := dcxerrors.ErrorCodeFromHTTP(resp.StatusCode)
 		dcxerrors.Emit(code, message, "")
 		return nil

@@ -8,7 +8,11 @@ package errors
 import (
 	"encoding/json"
 	"fmt"
+	"math"
+	"net/http"
 	"os"
+	"strconv"
+	"time"
 )
 
 // ErrorCode identifies the category of error.
@@ -23,6 +27,7 @@ const (
 	APIError          ErrorCode = "API_ERROR"
 	NotFound          ErrorCode = "NOT_FOUND"
 	Conflict          ErrorCode = "CONFLICT"
+	RateLimited       ErrorCode = "RATE_LIMITED"
 	EvalFailed        ErrorCode = "EVAL_FAILED"
 	InfraError        ErrorCode = "INFRA_ERROR"
 	Internal          ErrorCode = "INTERNAL"
@@ -44,7 +49,7 @@ func ExitCodeFor(code ErrorCode) int {
 	switch code {
 	case MissingArgument, InvalidIdentifier, InvalidConfig, UnknownCommand, EvalFailed:
 		return ExitValidation
-	case APIError, InfraError, Internal:
+	case APIError, InfraError, RateLimited, Internal:
 		return ExitInfra
 	case AuthError:
 		return ExitAuth
@@ -61,7 +66,7 @@ func ExitCodeFor(code ErrorCode) int {
 // typically retryable.
 func RetryableFor(code ErrorCode) bool {
 	switch code {
-	case APIError, InfraError:
+	case APIError, InfraError, RateLimited:
 		return true
 	default:
 		return false
@@ -70,12 +75,13 @@ func RetryableFor(code ErrorCode) bool {
 
 // ErrorDetail is the inner payload of an error envelope.
 type ErrorDetail struct {
-	Code      ErrorCode `json:"code"`
-	Message   string    `json:"message"`
-	Hint      string    `json:"hint,omitempty"`
-	ExitCode  int       `json:"exit_code"`
-	Retryable bool      `json:"retryable"`
-	Status    string    `json:"status"`
+	Code              ErrorCode `json:"code"`
+	Message           string    `json:"message"`
+	Hint              string    `json:"hint,omitempty"`
+	ExitCode          int       `json:"exit_code"`
+	Retryable         bool      `json:"retryable"`
+	RetryAfterSeconds *int      `json:"retry_after_seconds,omitempty"`
+	Status            string    `json:"status"`
 }
 
 // ErrorEnvelope is the top-level JSON written to stderr.
@@ -154,6 +160,58 @@ func (e ErrorEnvelope) Write() {
 	fmt.Fprintln(os.Stderr, string(data))
 }
 
+// EmitRateLimited writes a RATE_LIMITED error envelope with retry_after_seconds
+// parsed from the Retry-After header. Handles both integer-seconds and HTTP-date
+// forms. Malformed or past values omit retry_after_seconds with a generic hint.
+func EmitRateLimited(message string, retryAfterHeader string) {
+	seconds := ParseRetryAfter(retryAfterHeader)
+	hint := "Retry later"
+	if seconds != nil {
+		hint = fmt.Sprintf("Retry after %d seconds", *seconds)
+	}
+
+	exitCode := ExitCodeFor(RateLimited)
+	envelope := ErrorEnvelope{
+		Error: ErrorDetail{
+			Code:              RateLimited,
+			Message:           message,
+			Hint:              hint,
+			ExitCode:          exitCode,
+			Retryable:         true,
+			RetryAfterSeconds: seconds,
+			Status:            "error",
+		},
+	}
+	data, _ := json.Marshal(envelope)
+	fmt.Fprintln(os.Stderr, string(data))
+	os.Exit(exitCode)
+}
+
+// ParseRetryAfter parses a Retry-After header value into seconds.
+// Accepts integer-seconds ("12") or HTTP-date ("Fri, 18 Apr 2026 12:30:00 GMT").
+// Returns nil for malformed, empty, or past values.
+func ParseRetryAfter(header string) *int {
+	if header == "" {
+		return nil
+	}
+
+	// Try integer-seconds first.
+	if secs, err := strconv.Atoi(header); err == nil && secs > 0 {
+		return &secs
+	}
+
+	// Try HTTP-date (RFC 1123).
+	if t, err := http.ParseTime(header); err == nil {
+		delta := int(math.Ceil(time.Until(t).Seconds()))
+		if delta > 0 {
+			return &delta
+		}
+		return nil // past date
+	}
+
+	return nil // malformed
+}
+
 // ExitCodeFromHTTP maps an HTTP status code to a semantic exit code.
 func ExitCodeFromHTTP(status int) int {
 	switch {
@@ -179,6 +237,8 @@ func ErrorCodeFromHTTP(status int) ErrorCode {
 		return NotFound
 	case status == 409:
 		return Conflict
+	case status == 429:
+		return RateLimited
 	case status >= 500:
 		return InfraError
 	default:
