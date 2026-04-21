@@ -959,11 +959,7 @@ func readAPIError(resp *http.Response) error {
 	if json.Unmarshal(body, &apiErr) == nil && apiErr.Error.Message != "" {
 		message = apiErr.Error.Message
 	}
-	// 429: emit structured rate-limit error and exit (never returns).
-	if resp.StatusCode == 429 {
-		dcxerrors.EmitRateLimited(message, resp.Header.Get("Retry-After"))
-	}
-	return fmt.Errorf("%s", message)
+	return &dcxerrors.APIHTTPError{StatusCode: resp.StatusCode, Message: message, RetryAfter: resp.Header.Get("Retry-After")}
 }
 
 func sourceName(st profiles.SourceType) string {
