@@ -11,6 +11,8 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	dcxerrors "github.com/haiyuan-eng-google/dcx-cli/internal/errors"
 )
 
 // Client provides access to the Looker Admin SDK.
@@ -175,6 +177,9 @@ func readError(resp *http.Response) error {
 	message := fmt.Sprintf("Looker API returned HTTP %d", resp.StatusCode)
 	if json.Unmarshal(body, &apiErr) == nil && apiErr.Message != "" {
 		message = apiErr.Message
+	}
+	if resp.StatusCode == 429 {
+		dcxerrors.EmitRateLimited(message, resp.Header.Get("Retry-After"))
 	}
 	return fmt.Errorf("%s", message)
 }
