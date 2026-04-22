@@ -90,8 +90,9 @@ Structured output, typed errors, and an MCP bridge for AI agents.`,
 	// Register CA commands.
 	app.addCACommands()
 
-	// Register static Spanner commands (update-ddl with ergonomic flags).
+	// Register static Spanner commands.
 	app.registerSpannerUpdateDdlCommand()
+	app.registerSpannerOperationsCommands()
 
 	// Register Data Cloud helper commands (schema describe, databases list via QueryData).
 	app.registerDataCloudHelperCommands()
