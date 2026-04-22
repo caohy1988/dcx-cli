@@ -11,7 +11,38 @@ import "strings"
 //   - Spanner/AlloyDB/Looker: "name" field with full path → leaf segment
 //   - CloudSQL: "name" field is already the short name
 //   - Fallback: "name" or "id" field as-is
+// InjectResourceIDByField adds _resource_id to each item in a list by
+// extracting a value from the given field path. For full resource paths,
+// it extracts the leaf segment. Exported for use by static list commands.
+func InjectResourceIDByField(items []interface{}, field string) []interface{} {
+	for _, item := range items {
+		m, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if val, ok := m[field].(string); ok && val != "" {
+			if strings.Contains(val, "/") {
+				parts := strings.Split(val, "/")
+				m["_resource_id"] = parts[len(parts)-1]
+			} else {
+				m["_resource_id"] = val
+			}
+		}
+	}
+	return items
+}
+
+// skipResourceID lists resources where a single _resource_id is not sufficient
+// to uniquely address the item in follow-on commands (e.g., CloudSQL users
+// require both name and host for MySQL).
+var skipResourceID = map[string]bool{
+	"users": true, // CloudSQL/AlloyDB users may need host or other context
+}
+
 func injectResourceIDs(items []interface{}, resource string) []interface{} {
+	if skipResourceID[resource] {
+		return items
+	}
 	for _, item := range items {
 		m, ok := item.(map[string]interface{})
 		if !ok {

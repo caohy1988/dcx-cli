@@ -71,6 +71,7 @@ type CreateAgentOpts struct {
 // AgentSummary is the dcx output representation for a single agent.
 type AgentSummary struct {
 	Name           string `json:"name"`
+	ResourceID     string `json:"_resource_id,omitempty"`
 	DisplayName    string `json:"display_name,omitempty"`
 	ExampleQueries int    `json:"example_queries_count,omitempty"`
 	CreateTime     string `json:"create_time,omitempty"`
