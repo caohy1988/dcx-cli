@@ -11,6 +11,7 @@ import "strings"
 //   - Spanner/AlloyDB/Looker: "name" field with full path → leaf segment
 //   - CloudSQL: "name" field is already the short name
 //   - Fallback: "name" or "id" field as-is
+//
 // InjectResourceIDByField adds _resource_id to each item in a list by
 // extracting a value from the given field path. For full resource paths,
 // it extracts the leaf segment. Exported for use by static list commands.
