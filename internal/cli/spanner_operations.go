@@ -138,14 +138,20 @@ On timeout: emits a structured error to stderr (exit 2, retryable).`,
 					return a.Render(format, result)
 				}
 
-				if time.Now().Add(interval).After(deadline) {
+				if time.Now().After(deadline) {
 					dcxerrors.Emit(dcxerrors.InfraError,
 						fmt.Sprintf("operation timed out after %ds", timeoutSecs),
 						fmt.Sprintf("Operation still running: %s", operationName))
 					return nil
 				}
 
-				time.Sleep(interval)
+				// Sleep the lesser of poll interval or remaining time.
+				remaining := time.Until(deadline)
+				if remaining > interval {
+					time.Sleep(interval)
+				} else if remaining > 0 {
+					time.Sleep(remaining)
+				}
 			}
 		},
 	}

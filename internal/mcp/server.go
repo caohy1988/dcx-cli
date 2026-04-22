@@ -153,8 +153,12 @@ func (s *Server) handleToolsList(req JSONRPCRequest) {
 		if c.Domain == "meta" || c.Domain == "auth" || c.Domain == "profiles" || c.Domain == "mcp" {
 			continue
 		}
-		// Only expose read-only commands.
+		// Only expose read-only, non-blocking commands.
 		if c.IsMutation {
+			continue
+		}
+		// Exclude long-polling commands (not suitable for tool calls).
+		if strings.HasSuffix(c.Command, " wait") {
 			continue
 		}
 
@@ -176,9 +180,14 @@ func (s *Server) handleToolsCall(req JSONRPCRequest) {
 		return
 	}
 
-	// Block mutations — MCP bridge is read-only.
-	if contract, ok := s.Registry.Get(toolNameToCommand(params.Name)); ok && contract.IsMutation {
+	// Block mutations and long-polling commands.
+	cmdName := toolNameToCommand(params.Name)
+	if contract, ok := s.Registry.Get(cmdName); ok && contract.IsMutation {
 		s.writeError(req.ID, -32601, "Method not allowed", "MCP bridge is read-only; mutation commands are not available")
+		return
+	}
+	if strings.HasSuffix(cmdName, " wait") {
+		s.writeError(req.ID, -32601, "Method not allowed", "Long-polling commands are not available via MCP")
 		return
 	}
 
