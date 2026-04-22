@@ -111,7 +111,7 @@ func (e *Executor) Execute(
 
 	// Wrap in normalized envelope for list commands.
 	if cmd.Method.Action == "list" {
-		envelope := normalizeListResponse(raw, cmd.Service.Domain)
+		envelope := normalizeListResponse(raw, cmd.Service.Domain, cmd.Method.Resource)
 		return output.RenderFiltered(format, envelope, e.OutputFields)
 	}
 
@@ -179,6 +179,7 @@ func (e *Executor) executePageAll(
 		}
 	}
 
+	allItems = injectResourceIDs(allItems, cmd.Method.Resource)
 	envelope := ListEnvelope{
 		Items:  allItems,
 		Source: sourceName(cmd.Service.Domain),
@@ -187,8 +188,11 @@ func (e *Executor) executePageAll(
 }
 
 // normalizeListResponse wraps raw API responses in the dcx list envelope.
-func normalizeListResponse(raw map[string]interface{}, domain string) ListEnvelope {
+func normalizeListResponse(raw map[string]interface{}, domain, resource string) ListEnvelope {
 	items := extractItems(raw)
+	if resource != "" {
+		items = injectResourceIDs(items, resource)
+	}
 	var npt string
 	if token, ok := raw["nextPageToken"].(string); ok {
 		npt = token
