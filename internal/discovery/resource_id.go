@@ -32,15 +32,19 @@ func InjectResourceIDByField(items []interface{}, field string) []interface{} {
 	return items
 }
 
-// skipResourceID lists resources where a single _resource_id is not sufficient
-// to uniquely address the item in follow-on commands (e.g., CloudSQL users
-// require both name and host for MySQL).
-var skipResourceID = map[string]bool{
-	"users": true, // CloudSQL/AlloyDB users may need host or other context
+// skipResourceIDForDomain lists domain+resource pairs where a single
+// _resource_id is not sufficient to uniquely address the item.
+// CloudSQL users require both name and host for MySQL instances.
+var skipResourceIDForDomain = map[string]bool{
+	"cloudsql:users": true,
 }
 
 func injectResourceIDs(items []interface{}, resource string) []interface{} {
-	if skipResourceID[resource] {
+	return injectResourceIDsForDomain(items, resource, "")
+}
+
+func injectResourceIDsForDomain(items []interface{}, resource, domain string) []interface{} {
+	if domain != "" && skipResourceIDForDomain[domain+":"+resource] {
 		return items
 	}
 	for _, item := range items {

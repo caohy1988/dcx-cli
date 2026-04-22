@@ -179,7 +179,7 @@ func (e *Executor) executePageAll(
 		}
 	}
 
-	allItems = injectResourceIDs(allItems, cmd.Method.Resource)
+	allItems = injectResourceIDsForDomain(allItems, cmd.Method.Resource, cmd.Service.Domain)
 	envelope := ListEnvelope{
 		Items:  allItems,
 		Source: sourceName(cmd.Service.Domain),
@@ -191,7 +191,7 @@ func (e *Executor) executePageAll(
 func normalizeListResponse(raw map[string]interface{}, domain, resource string) ListEnvelope {
 	items := extractItems(raw)
 	if resource != "" {
-		items = injectResourceIDs(items, resource)
+		items = injectResourceIDsForDomain(items, resource, domain)
 	}
 	var npt string
 	if token, ok := raw["nextPageToken"].(string); ok {
