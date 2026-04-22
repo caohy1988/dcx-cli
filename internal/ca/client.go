@@ -569,6 +569,9 @@ func parseAgentSummary(m map[string]interface{}) AgentSummary {
 	agent := AgentSummary{}
 	if n, ok := m["name"].(string); ok {
 		agent.Name = n
+		// Extract leaf ID for agent chaining (e.g., --agent flag).
+		parts := strings.Split(n, "/")
+		agent.ResourceID = parts[len(parts)-1]
 	}
 	if d, ok := m["displayName"].(string); ok {
 		agent.DisplayName = d

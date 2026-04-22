@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 
 	"github.com/haiyuan-eng-google/dcx-cli/internal/auth"
@@ -63,8 +64,18 @@ func (a *App) profilesListCmd() *cobra.Command {
 				all = []profiles.Profile{}
 			}
 
+			// Build items with _resource_id for agent chaining.
+			items := make([]interface{}, len(all))
+			for i, p := range all {
+				data, _ := json.Marshal(p)
+				var m map[string]interface{}
+				json.Unmarshal(data, &m)
+				m["_resource_id"] = p.Name
+				items[i] = m
+			}
+
 			result := map[string]interface{}{
-				"items":        all,
+				"items":        items,
 				"profiles_dir": profiles.ProfilesDir(),
 				"count":        len(all),
 			}
