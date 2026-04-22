@@ -22,6 +22,7 @@ type CLIOpts struct {
 	CredentialsFile *string
 	DryRun          *bool
 	OutputFields    *string
+	Retry           *int
 }
 
 // RegisterCommands parses a Discovery Document and registers all allowed
@@ -140,6 +141,9 @@ func registerOneCommand(
 
 			if opts.OutputFields != nil {
 				executor.OutputFields = *opts.OutputFields
+			}
+			if opts.Retry != nil {
+				executor.MaxRetries = *opts.Retry
 			}
 
 			return executor.Execute(

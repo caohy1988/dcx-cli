@@ -22,6 +22,7 @@ type GlobalOpts struct {
 	CredentialsFile string
 	DryRun          bool
 	OutputFields    string
+	Retry           int
 }
 
 // App holds the assembled CLI application state.
@@ -57,6 +58,7 @@ Structured output, typed errors, and an MCP bridge for AI agents.`,
 	pf.StringVar(&opts.CredentialsFile, "credentials-file", "", "Path to service account JSON credentials file")
 	pf.BoolVar(&opts.DryRun, "dry-run", false, "Validate and show what would be sent without executing")
 	pf.StringVar(&opts.OutputFields, "output-fields", "", "Comma-separated list of fields to include in output (e.g., name,schema)")
+	pf.IntVar(&opts.Retry, "retry", 0, "Number of retries on 429/transport errors (0=no retry, 3=recommended)")
 
 	app := &App{
 		Root:     root,

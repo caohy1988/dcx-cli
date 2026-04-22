@@ -11,6 +11,7 @@ import (
 	"github.com/haiyuan-eng-google/dcx-cli/internal/auth"
 	dcxerrors "github.com/haiyuan-eng-google/dcx-cli/internal/errors"
 	"github.com/haiyuan-eng-google/dcx-cli/internal/output"
+	"github.com/haiyuan-eng-google/dcx-cli/internal/retry"
 )
 
 // ListEnvelope is the normalized output for list commands.
@@ -25,6 +26,7 @@ type ListEnvelope struct {
 type Executor struct {
 	HTTPClient   *http.Client
 	OutputFields string // comma-separated fields to include in output
+	MaxRetries   int    // 0 = no retry
 }
 
 // NewExecutor creates an Executor with the given HTTP client.
@@ -76,15 +78,14 @@ func (e *Executor) Execute(
 		return e.executePageAll(ctx, cmd, pathParams, queryParams, tok.AccessToken, format)
 	}
 
-	// 5. Build and execute request.
-	req, err := BuildRequest(cmd, pathParams, queryParams, tok.AccessToken, nil)
-	if err != nil {
-		dcxerrors.Emit(dcxerrors.Internal, fmt.Sprintf("building request: %v", err), "")
-		return nil
-	}
-	req = req.WithContext(ctx)
-
-	resp, err := e.HTTPClient.Do(req)
+	// 5. Build and execute request (with retry if configured).
+	resp, err := retry.Do(e.HTTPClient, func() (*http.Request, error) {
+		r, err := BuildRequest(cmd, pathParams, queryParams, tok.AccessToken, nil)
+		if err != nil {
+			return nil, err
+		}
+		return r.WithContext(ctx), nil
+	}, e.MaxRetries)
 	if err != nil {
 		dcxerrors.Emit(dcxerrors.InfraError, fmt.Sprintf("API request failed: %v", err), "Check network connectivity")
 		return nil
@@ -138,14 +139,14 @@ func (e *Executor) executePageAll(
 			params["pageToken"] = pageToken
 		}
 
-		req, err := BuildRequest(cmd, pathParams, params, token, nil)
-		if err != nil {
-			dcxerrors.Emit(dcxerrors.Internal, fmt.Sprintf("building request: %v", err), "")
-			return nil
-		}
-		req = req.WithContext(ctx)
-
-		resp, err := e.HTTPClient.Do(req)
+		paramsCopy := params // capture for closure
+		resp, err := retry.Do(e.HTTPClient, func() (*http.Request, error) {
+			r, err := BuildRequest(cmd, pathParams, paramsCopy, token, nil)
+			if err != nil {
+				return nil, err
+			}
+			return r.WithContext(ctx), nil
+		}, e.MaxRetries)
 		if err != nil {
 			dcxerrors.Emit(dcxerrors.InfraError, fmt.Sprintf("API request failed: %v", err), "")
 			return nil
