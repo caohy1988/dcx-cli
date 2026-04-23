@@ -102,4 +102,3 @@ func backoffDelay(attempt int, retryAfterHeader string) time.Duration {
 	}
 	return delay
 }
-
