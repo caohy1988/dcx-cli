@@ -81,6 +81,46 @@ func TestValidateTopLevel_BooleanType(t *testing.T) {
 	}
 }
 
+func TestValidateTopLevel_RefFieldGivenNonObject(t *testing.T) {
+	doc := loadBigQueryDoc(t)
+
+	tests := []struct {
+		name string
+		body string
+	}{
+		{"null", `{"datasetReference": null}`},
+		{"string", `{"datasetReference": "not-object"}`},
+		{"number", `{"datasetReference": 42}`},
+		{"array", `{"datasetReference": [1,2]}`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errors := ValidateTopLevelProperties([]byte(tt.body), "Dataset", doc)
+			found := false
+			for _, e := range errors {
+				if e.Field == "datasetReference" && strings.Contains(e.Message, "expects object") {
+					found = true
+				}
+			}
+			if !found {
+				t.Errorf("expected type error for $ref field given %s, got: %v", tt.name, errors)
+			}
+		})
+	}
+}
+
+func TestValidateTopLevel_RefFieldGivenValidObject(t *testing.T) {
+	doc := loadBigQueryDoc(t)
+	body := []byte(`{"datasetReference": {"datasetId": "test"}}`)
+
+	errors := ValidateTopLevelProperties(body, "Dataset", doc)
+	for _, e := range errors {
+		if e.Field == "datasetReference" {
+			t.Errorf("valid object should not error on $ref field, got: %v", e)
+		}
+	}
+}
+
 func TestValidateTopLevel_UnknownSchema(t *testing.T) {
 	doc := loadBigQueryDoc(t)
 	body := []byte(`{"anything": "goes"}`)

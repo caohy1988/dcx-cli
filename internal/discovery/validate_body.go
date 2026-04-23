@@ -85,7 +85,12 @@ func ValidateTopLevelProperties(body []byte, schemaName string, docJSON []byte) 
 		// Type check for present fields.
 		expectedType, _ := prop["type"].(string)
 		if expectedType == "" {
-			continue // $ref or untyped, skip
+			// $ref properties are expected to be objects.
+			if _, hasRef := prop["$ref"]; hasRef {
+				expectedType = "object"
+			} else {
+				continue // untyped, skip
+			}
 		}
 
 		if err := checkType(propName, value, expectedType); err != nil {
