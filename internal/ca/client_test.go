@@ -28,9 +28,9 @@ func TestSourceName(t *testing.T) {
 }
 
 func TestNewClient(t *testing.T) {
-	c := NewClient(nil)
+	c := NewClient(nil, 0)
 	if c.HTTPClient == nil {
-		t.Error("NewClient(nil) should set default HTTP client")
+		t.Error("NewClient(nil, 0) should set default HTTP client")
 	}
 }
 

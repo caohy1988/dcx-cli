@@ -13,6 +13,7 @@ import (
 
 	dcxerrors "github.com/haiyuan-eng-google/dcx-cli/internal/errors"
 	"github.com/haiyuan-eng-google/dcx-cli/internal/profiles"
+	"github.com/haiyuan-eng-google/dcx-cli/internal/retry"
 )
 
 const (
@@ -35,14 +36,47 @@ const (
 // Client provides access to the Conversational Analytics APIs.
 type Client struct {
 	HTTPClient *http.Client
+	MaxRetries int
 }
 
 // NewClient creates a CA client.
-func NewClient(httpClient *http.Client) *Client {
+func NewClient(httpClient *http.Client, maxRetries int) *Client {
 	if httpClient == nil {
 		httpClient = http.DefaultClient
 	}
-	return &Client{HTTPClient: httpClient}
+	return &Client{HTTPClient: httpClient, MaxRetries: maxRetries}
+}
+
+// do executes an HTTP request with retry support.
+func (c *Client) do(req *http.Request) (*http.Response, error) {
+	if c.MaxRetries <= 0 {
+		return c.HTTPClient.Do(req)
+	}
+	// Clone request essentials for retry builder.
+	method := req.Method
+	url := req.URL.String()
+	headers := req.Header.Clone()
+	var bodyBytes []byte
+	if req.Body != nil {
+		bodyBytes, _ = io.ReadAll(req.Body)
+		req.Body.Close()
+	}
+	// First attempt uses the original body.
+	if bodyBytes != nil {
+		req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	}
+	return retry.Do(c.HTTPClient, func() (*http.Request, error) {
+		var body io.Reader
+		if bodyBytes != nil {
+			body = bytes.NewReader(bodyBytes)
+		}
+		r, err := http.NewRequestWithContext(req.Context(), method, url, body)
+		if err != nil {
+			return nil, err
+		}
+		r.Header = headers.Clone()
+		return r, nil
+	}, c.MaxRetries)
 }
 
 // Ask routes a question to the appropriate CA endpoint based on source type.
@@ -137,7 +171,7 @@ func (c *Client) askChat(ctx context.Context, token string, profile *profiles.Pr
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-server-timeout", "300")
 
-	resp, err := c.HTTPClient.Do(req)
+	resp, err := c.do(req)
 	if err != nil {
 		return nil, fmt.Errorf("chat API request failed: %w", err)
 	}
@@ -202,7 +236,7 @@ func (c *Client) askQueryData(ctx context.Context, token string, profile *profil
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-server-timeout", "300")
 
-	resp, err := c.HTTPClient.Do(req)
+	resp, err := c.do(req)
 	if err != nil {
 		return nil, fmt.Errorf("queryData API request failed: %w", err)
 	}
@@ -277,7 +311,7 @@ func (c *Client) AskQueryDataRaw(ctx context.Context, token string, profile *pro
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := c.HTTPClient.Do(req)
+	resp, err := c.do(req)
 	if err != nil {
 		return nil, fmt.Errorf("queryData API request failed: %w", err)
 	}
@@ -347,7 +381,7 @@ func (c *Client) CreateAgent(ctx context.Context, token, projectID, _ string, op
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("x-server-timeout", "300")
 
-	resp, err := c.HTTPClient.Do(httpReq)
+	resp, err := c.do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("create-agent API request failed: %w", err)
 	}
@@ -402,7 +436,7 @@ func (c *Client) ListAgents(ctx context.Context, token, projectID, _ string) (*A
 		httpReq.Header.Set("Authorization", "Bearer "+token)
 		httpReq.Header.Set("Accept", "application/json")
 
-		resp, err := c.HTTPClient.Do(httpReq)
+		resp, err := c.do(httpReq)
 		if err != nil {
 			return nil, fmt.Errorf("list-agents API request failed: %w", err)
 		}
@@ -481,7 +515,7 @@ func (c *Client) AddVerifiedQuery(ctx context.Context, token, projectID, _ strin
 	getReq.Header.Set("Authorization", "Bearer "+token)
 	getReq.Header.Set("Accept", "application/json")
 
-	getResp, err := c.HTTPClient.Do(getReq)
+	getResp, err := c.do(getReq)
 	if err != nil {
 		return nil, fmt.Errorf("get agent failed: %w", err)
 	}
@@ -544,7 +578,7 @@ func (c *Client) AddVerifiedQuery(ctx context.Context, token, projectID, _ strin
 	patchReq.Header.Set("Content-Type", "application/json")
 	patchReq.Header.Set("x-server-timeout", "300")
 
-	patchResp, err := c.HTTPClient.Do(patchReq)
+	patchResp, err := c.do(patchReq)
 	if err != nil {
 		return nil, fmt.Errorf("updateSync agent failed: %w", err)
 	}

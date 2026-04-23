@@ -62,6 +62,7 @@ func (a *App) registerJobsQueryCommand() {
 				maxResults,
 				format,
 				a.Opts.OutputFields,
+				a.Opts.Retry,
 			)
 		},
 	}
@@ -95,5 +96,6 @@ func (a *App) discoveryOpts() *discovery.CLIOpts {
 		CredentialsFile: &a.Opts.CredentialsFile,
 		DryRun:          &a.Opts.DryRun,
 		OutputFields:    &a.Opts.OutputFields,
+		Retry:           &a.Opts.Retry,
 	}
 }

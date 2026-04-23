@@ -13,6 +13,7 @@ import (
 	"github.com/haiyuan-eng-google/dcx-cli/internal/auth"
 	"github.com/haiyuan-eng-google/dcx-cli/internal/contracts"
 	dcxerrors "github.com/haiyuan-eng-google/dcx-cli/internal/errors"
+	"github.com/haiyuan-eng-google/dcx-cli/internal/retry"
 	"github.com/spf13/cobra"
 )
 
@@ -133,16 +134,16 @@ Examples:
 				return nil
 			}
 
-			// Execute request.
-			req, err := http.NewRequestWithContext(ctx, "PATCH", apiURL, bytes.NewReader(bodyJSON))
-			if err != nil {
-				dcxerrors.Emit(dcxerrors.Internal, err.Error(), "")
-				return nil
-			}
-			req.Header.Set("Authorization", "Bearer "+tok.AccessToken)
-			req.Header.Set("Content-Type", "application/json")
-
-			resp, err := http.DefaultClient.Do(req)
+			// Execute request with retry.
+			resp, err := retry.Do(nil, func() (*http.Request, error) {
+				r, err := http.NewRequestWithContext(ctx, "PATCH", apiURL, bytes.NewReader(bodyJSON))
+				if err != nil {
+					return nil, err
+				}
+				r.Header.Set("Authorization", "Bearer "+tok.AccessToken)
+				r.Header.Set("Content-Type", "application/json")
+				return r, nil
+			}, a.Opts.Retry)
 			if err != nil {
 				dcxerrors.Emit(dcxerrors.InfraError, fmt.Sprintf("API request failed: %v", err), "")
 				return nil

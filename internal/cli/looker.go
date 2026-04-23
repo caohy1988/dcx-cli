@@ -148,5 +148,5 @@ func (a *App) resolveLookerClient(ctx context.Context, profileName string) (*loo
 		return nil, err
 	}
 
-	return looker.NewClient(nil, profile.LookerInstanceURL, tok.AccessToken), nil
+	return looker.NewClient(nil, profile.LookerInstanceURL, tok.AccessToken, a.Opts.Retry), nil
 }

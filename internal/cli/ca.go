@@ -122,7 +122,7 @@ func (a *App) caAskCmd() *cobra.Command {
 				return nil
 			}
 
-			client := ca.NewClient(nil)
+			client := ca.NewClient(nil, a.Opts.Retry)
 
 			// Stream thinking steps to stderr for text format.
 			var cb ca.StreamCallback
@@ -218,7 +218,7 @@ func (a *App) caCreateAgentCmd() *cobra.Command {
 				opts.ExampleQueries = eqs
 			}
 
-			client := ca.NewClient(nil)
+			client := ca.NewClient(nil, a.Opts.Retry)
 			result, err := client.CreateAgent(ctx, tok.AccessToken, projectID, a.Opts.Location, opts)
 			if err != nil {
 				dcxerrors.EmitAPIError(err)
@@ -267,7 +267,7 @@ func (a *App) caListAgentsCmd() *cobra.Command {
 				return nil
 			}
 
-			client := ca.NewClient(nil)
+			client := ca.NewClient(nil, a.Opts.Retry)
 			result, err := client.ListAgents(ctx, tok.AccessToken, projectID, a.Opts.Location)
 			if err != nil {
 				dcxerrors.EmitAPIError(err)
@@ -323,7 +323,7 @@ func (a *App) caAddVerifiedQueryCmd() *cobra.Command {
 				return nil
 			}
 
-			client := ca.NewClient(nil)
+			client := ca.NewClient(nil, a.Opts.Retry)
 			result, err := client.AddVerifiedQuery(ctx, tok.AccessToken, projectID, a.Opts.Location, ca.PatchAgentOpts{
 				AgentName: agentName,
 				ExampleQueries: []ca.ExampleQuery{

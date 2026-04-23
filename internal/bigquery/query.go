@@ -13,6 +13,7 @@ import (
 	"github.com/haiyuan-eng-google/dcx-cli/internal/auth"
 	dcxerrors "github.com/haiyuan-eng-google/dcx-cli/internal/errors"
 	"github.com/haiyuan-eng-google/dcx-cli/internal/output"
+	"github.com/haiyuan-eng-google/dcx-cli/internal/retry"
 )
 
 const bigqueryJobsURL = "https://bigquery.googleapis.com/bigquery/v2/projects/%s/queries"
@@ -84,6 +85,7 @@ func ExecuteQuery(
 	maxResults int,
 	format output.Format,
 	outputFields string,
+	maxRetries int,
 ) error {
 	if projectID == "" {
 		dcxerrors.Emit(dcxerrors.MissingArgument, "required flag --project-id is missing", "")
@@ -122,19 +124,19 @@ func ExecuteQuery(
 		return nil
 	}
 
-	url := fmt.Sprintf(bigqueryJobsURL, projectID)
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(bodyJSON))
-	if err != nil {
-		dcxerrors.Emit(dcxerrors.Internal, fmt.Sprintf("creating request: %v", err), "")
-		return nil
-	}
+	apiURL := fmt.Sprintf(bigqueryJobsURL, projectID)
 
-	req.Header.Set("Authorization", "Bearer "+tok.AccessToken)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-
-	// Execute request.
-	resp, err := http.DefaultClient.Do(req)
+	// Execute request with retry.
+	resp, err := retry.Do(nil, func() (*http.Request, error) {
+		r, err := http.NewRequestWithContext(ctx, "POST", apiURL, bytes.NewReader(bodyJSON))
+		if err != nil {
+			return nil, err
+		}
+		r.Header.Set("Authorization", "Bearer "+tok.AccessToken)
+		r.Header.Set("Content-Type", "application/json")
+		r.Header.Set("Accept", "application/json")
+		return r, nil
+	}, maxRetries)
 	if err != nil {
 		dcxerrors.Emit(dcxerrors.InfraError, fmt.Sprintf("API request failed: %v", err), "Check network connectivity")
 		return nil
