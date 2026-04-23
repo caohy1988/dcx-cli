@@ -130,9 +130,9 @@ func (a *App) caAskCmd() *cobra.Command {
 				cb = func(event ca.StreamEvent) {
 					switch event.Type {
 					case ca.EventThinking:
-						fmt.Fprintf(os.Stderr, "\033[2m%s\033[0m\n", event.Text)
+						fmt.Fprintf(os.Stderr, "\033[2m%s\033[0m\n", output.Sanitize(event.Text))
 					case ca.EventSQL:
-						fmt.Fprintf(os.Stderr, "\033[2mSQL: %s\033[0m\n", truncateSQL(event.Text, 120))
+						fmt.Fprintf(os.Stderr, "\033[2mSQL: %s\033[0m\n", output.Sanitize(truncateSQL(event.Text, 120)))
 					}
 				}
 			}

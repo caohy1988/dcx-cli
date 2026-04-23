@@ -167,7 +167,7 @@ func mapToTable(m map[string]interface{}) ([][]string, []string, error) {
 
 	rows := make([][]string, 0, len(m))
 	for _, k := range keys {
-		rows = append(rows, []string{k, fmt.Sprintf("%v", m[k])})
+		rows = append(rows, []string{Sanitize(k), Sanitize(fmt.Sprintf("%v", m[k]))})
 	}
 	return rows, headers, nil
 }
@@ -205,7 +205,7 @@ func sliceToTable(rv reflect.Value) ([][]string, []string, error) {
 		row := make([]string, len(headers))
 		for j, h := range headers {
 			if v, ok := item[h]; ok {
-				row[j] = fmt.Sprintf("%v", v)
+				row[j] = Sanitize(fmt.Sprintf("%v", v))
 			}
 		}
 		rows[i] = row
@@ -232,13 +232,15 @@ func toStringMap(v interface{}) (map[string]interface{}, bool) {
 }
 
 func renderText(value interface{}) error {
+	var s string
 	switch v := value.(type) {
 	case string:
-		fmt.Fprintln(os.Stdout, v)
+		s = v
 	case []byte:
-		fmt.Fprintln(os.Stdout, string(v))
+		s = string(v)
 	default:
-		fmt.Fprintln(os.Stdout, fmt.Sprintf("%v", v))
+		s = fmt.Sprintf("%v", v)
 	}
+	fmt.Fprintln(os.Stdout, Sanitize(s))
 	return nil
 }
