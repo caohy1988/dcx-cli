@@ -11,10 +11,8 @@
 package retry
 
 import (
-	"fmt"
 	"math"
 	"net/http"
-	"os"
 	"time"
 
 	dcxerrors "github.com/haiyuan-eng-google/dcx-cli/internal/errors"
@@ -54,7 +52,6 @@ func Do(client *http.Client, buildRequest func() (*http.Request, error), maxRetr
 			lastErr = err
 			if attempt < maxRetries {
 				delay := backoffDelay(attempt, "")
-				logRetry(attempt+1, maxRetries, delay, fmt.Sprintf("transport error: %v", err))
 				time.Sleep(delay)
 				continue
 			}
@@ -67,7 +64,6 @@ func Do(client *http.Client, buildRequest func() (*http.Request, error), maxRetr
 			if attempt < maxRetries {
 				retryAfter := resp.Header.Get("Retry-After")
 				delay := backoffDelay(attempt, retryAfter)
-				logRetry(attempt+1, maxRetries, delay, "rate limited (429)")
 				resp.Body.Close()
 				time.Sleep(delay)
 				continue
@@ -107,8 +103,3 @@ func backoffDelay(attempt int, retryAfterHeader string) time.Duration {
 	return delay
 }
 
-// logRetry prints a retry message to stderr (dim styling for TTY).
-func logRetry(attempt, maxRetries int, delay time.Duration, reason string) {
-	fmt.Fprintf(os.Stderr, "\033[2mretry %d/%d in %s: %s\033[0m\n",
-		attempt, maxRetries, delay.Round(time.Millisecond), reason)
-}

@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	dcxerrors "github.com/haiyuan-eng-google/dcx-cli/internal/errors"
+	"github.com/haiyuan-eng-google/dcx-cli/internal/retry"
 )
 
 // Client provides access to the Looker Admin SDK.
@@ -20,19 +21,20 @@ type Client struct {
 	HTTPClient  *http.Client
 	InstanceURL string // e.g. "https://mycompany.looker.com"
 	Token       string // Bearer token (Google OAuth or Looker API key)
+	MaxRetries  int
 }
 
 // NewClient creates a Looker client.
-func NewClient(httpClient *http.Client, instanceURL, token string) *Client {
+func NewClient(httpClient *http.Client, instanceURL, token string, maxRetries int) *Client {
 	if httpClient == nil {
 		httpClient = http.DefaultClient
 	}
-	// Normalize instance URL.
 	instanceURL = strings.TrimRight(instanceURL, "/")
 	return &Client{
 		HTTPClient:  httpClient,
 		InstanceURL: instanceURL,
 		Token:       token,
+		MaxRetries:  maxRetries,
 	}
 }
 
@@ -81,7 +83,7 @@ func (c *Client) ListExplores(ctx context.Context) (*ExploresListResult, error) 
 	}
 	c.setHeaders(req)
 
-	resp, err := c.HTTPClient.Do(req)
+	resp, err := retry.Do(c.HTTPClient, func() (*http.Request, error) { return req, nil }, c.MaxRetries)
 	if err != nil {
 		return nil, fmt.Errorf("Looker API request failed: %w", err)
 	}
@@ -141,7 +143,7 @@ func (c *Client) GetDashboard(ctx context.Context, dashboardID string) (*Dashboa
 	}
 	c.setHeaders(req)
 
-	resp, err := c.HTTPClient.Do(req)
+	resp, err := retry.Do(c.HTTPClient, func() (*http.Request, error) { return req, nil }, c.MaxRetries)
 	if err != nil {
 		return nil, fmt.Errorf("Looker API request failed: %w", err)
 	}
