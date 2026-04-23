@@ -1,5 +1,23 @@
 package discovery
 
+// ConfigForDomain returns the ServiceConfig for a dcx domain name.
+func ConfigForDomain(domain string) *ServiceConfig {
+	switch domain {
+	case "bigquery":
+		return BigQueryConfig()
+	case "spanner":
+		return SpannerConfig()
+	case "alloydb":
+		return AlloyDBConfig()
+	case "cloudsql":
+		return CloudSQLConfig()
+	case "looker":
+		return LookerConfig()
+	default:
+		return nil
+	}
+}
+
 // BigQueryConfig returns the ServiceConfig for BigQuery dynamic commands.
 func BigQueryConfig() *ServiceConfig {
 	return &ServiceConfig{

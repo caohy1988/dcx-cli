@@ -56,7 +56,8 @@ type ApiMethod struct {
 	FlatPath       string              `json:"flatPath"`   // Simplified path template
 	Parameters     map[string]ApiParam `json:"parameters"`
 	ParameterOrder []string            `json:"parameterOrder"`
-	RequestRef     string              `json:"requestRef,omitempty"` // Schema $ref for request body (e.g. "Dataset")
+	RequestRef     string              `json:"requestRef,omitempty"`  // Schema $ref for request body (e.g. "Dataset")
+	ResponseRef    string              `json:"responseRef,omitempty"` // Schema $ref for response body
 }
 
 // IsMutation returns true if the method modifies state (non-GET).
