@@ -109,6 +109,83 @@ func TestRenderText(t *testing.T) {
 	}
 }
 
+func TestRenderTextStruct(t *testing.T) {
+	type Result struct {
+		Name   string `json:"name"`
+		Count  int    `json:"count"`
+		Active bool   `json:"active"`
+	}
+
+	out := captureStdout(t, func() {
+		if err := Render(Text, Result{Name: "test", Count: 42, Active: true}); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	// Should NOT contain raw Go struct syntax.
+	if strings.Contains(out, "&{") || strings.Contains(out, ":{") {
+		t.Errorf("Text output contains raw Go struct: %q", out)
+	}
+	// Should contain key-value pairs from JSON tags.
+	if !strings.Contains(out, "name: test") {
+		t.Errorf("missing 'name: test' in: %q", out)
+	}
+	if !strings.Contains(out, "count: 42") {
+		t.Errorf("missing 'count: 42' in: %q", out)
+	}
+	if !strings.Contains(out, "active: true") {
+		t.Errorf("missing 'active: true' in: %q", out)
+	}
+}
+
+func TestRenderTextStructWithSlice(t *testing.T) {
+	type Item struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	}
+	type ListResult struct {
+		Items  []Item `json:"items"`
+		Source string `json:"source"`
+	}
+
+	out := captureStdout(t, func() {
+		if err := Render(Text, ListResult{
+			Items:  []Item{{ID: "a", Name: "Alice"}, {ID: "b", Name: "Bob"}},
+			Source: "test",
+		}); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	if strings.Contains(out, "&{") {
+		t.Errorf("Text output contains raw Go struct: %q", out)
+	}
+	if !strings.Contains(out, "source: test") {
+		t.Errorf("missing 'source: test' in: %q", out)
+	}
+	if !strings.Contains(out, "id: a") {
+		t.Errorf("missing 'id: a' in: %q", out)
+	}
+}
+
+func TestRenderTextMap(t *testing.T) {
+	out := captureStdout(t, func() {
+		if err := Render(Text, map[string]interface{}{
+			"status": "success",
+			"count":  float64(3),
+		}); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	if !strings.Contains(out, "status: success") {
+		t.Errorf("missing 'status: success' in: %q", out)
+	}
+	if !strings.Contains(out, "count: 3") {
+		t.Errorf("missing 'count: 3' in: %q", out)
+	}
+}
+
 func TestRenderTable(t *testing.T) {
 	value := []map[string]interface{}{
 		{"name": "events", "location": "US"},
