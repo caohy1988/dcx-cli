@@ -95,8 +95,8 @@ func Emit(code ErrorCode, message, hint string) {
 	envelope := ErrorEnvelope{
 		Error: ErrorDetail{
 			Code:      code,
-			Message:   message,
-			Hint:      hint,
+			Message:   sanitizeErrorText(message),
+			Hint:      sanitizeErrorText(hint),
 			ExitCode:  exitCode,
 			Retryable: RetryableFor(code),
 			Status:    "error",
@@ -174,8 +174,8 @@ func EmitRateLimited(message string, retryAfterHeader string) {
 	envelope := ErrorEnvelope{
 		Error: ErrorDetail{
 			Code:              RateLimited,
-			Message:           message,
-			Hint:              hint,
+			Message:           sanitizeErrorText(message),
+			Hint:              sanitizeErrorText(hint),
 			ExitCode:          exitCode,
 			Retryable:         true,
 			RetryAfterSeconds: seconds,
@@ -210,6 +210,37 @@ func ParseRetryAfter(header string) *int {
 	}
 
 	return nil // malformed
+}
+
+// sanitizeErrorText strips control characters and ANSI escapes from error
+// messages before they are written to stderr. API responses may contain
+// untrusted content that could inject terminal escape sequences.
+func sanitizeErrorText(s string) string {
+	result := make([]byte, 0, len(s))
+	inEscape := false
+	for i := 0; i < len(s); i++ {
+		b := s[i]
+		if b == 0x1b && i+1 < len(s) && s[i+1] == '[' {
+			inEscape = true
+			i++
+			continue
+		}
+		if inEscape {
+			if b >= 0x40 && b <= 0x7E {
+				inEscape = false
+			}
+			continue
+		}
+		if b == '\n' || b == '\t' {
+			result = append(result, b)
+			continue
+		}
+		if b < 0x20 || b == 0x7F {
+			continue
+		}
+		result = append(result, b)
+	}
+	return string(result)
 }
 
 // ExitCodeFromHTTP maps an HTTP status code to a semantic exit code.

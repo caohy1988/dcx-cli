@@ -98,7 +98,7 @@ func registerOneCommand(
 
 	leafCmd := &cobra.Command{
 		Use:   leafName,
-		Short: cmd.Method.Description,
+		Short: output.Sanitize(cmd.Method.Description),
 		RunE: func(cobraCmd *cobra.Command, args []string) error {
 			format, err := output.ParseFormat(*opts.Format)
 			if err != nil {
@@ -165,14 +165,15 @@ func registerOneCommand(
 	// Register command-specific flags with correct types.
 	for _, flag := range cmd.CommandFlags {
 		flagName := camelToKebab(flag.Name)
+		desc := output.Sanitize(flag.Description)
 		if flag.Type == "boolean" {
 			val := new(bool)
 			boolFlagValues[flag.Name] = val
-			leafCmd.Flags().BoolVar(val, flagName, false, flag.Description)
+			leafCmd.Flags().BoolVar(val, flagName, false, desc)
 		} else {
 			val := new(string)
 			flagValues[flag.Name] = val
-			leafCmd.Flags().StringVar(val, flagName, "", flag.Description)
+			leafCmd.Flags().StringVar(val, flagName, "", desc)
 		}
 	}
 
