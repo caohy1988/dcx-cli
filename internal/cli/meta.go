@@ -148,6 +148,10 @@ Use --resolve-refs to expand $ref pointers inline.`,
 func (a *App) schemaMethodLookup(args []string, resolveRefs bool, format output.Format) error {
 	commandPath := strings.Join(args, " ")
 
+	// Strip optional "dcx " prefix so both "datasets insert" and
+	// "dcx datasets insert" (copied from meta commands output) work.
+	commandPath = strings.TrimPrefix(commandPath, "dcx ")
+
 	// Find the command in the registry to get the domain.
 	contract, err := a.Registry.Describe(commandPath)
 	if err != nil {
@@ -185,8 +189,10 @@ func (a *App) schemaMethodLookup(args []string, resolveRefs bool, format output.
 		}
 	}
 	if matched == nil {
-		dcxerrors.Emit(dcxerrors.UnknownCommand,
-			fmt.Sprintf("command %q not found in Discovery doc for %s", commandPath, contract.Domain), "")
+		// Command exists in registry but not in Discovery doc — it's a static command.
+		dcxerrors.Emit(dcxerrors.InvalidConfig,
+			fmt.Sprintf("command %q is not Discovery-driven; schema introspection is not available", commandPath),
+			"Schema lookup is supported for Discovery-generated commands only")
 		return nil
 	}
 
