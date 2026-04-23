@@ -185,7 +185,10 @@ func (e *Executor) executePageAll(
 
 		// Check page limit (0 = unlimited).
 		if e.PageLimit > 0 && pagesFetched >= e.PageLimit {
-			// Stopped by limit — include token so agents can continue.
+			// Stopped by limit — include next_page_token so agents can
+			// continue with --page-token. The envelope only contains
+			// accumulated items + source + token; per-page API metadata
+			// (if any) is not preserved in the capped result.
 			allItems = injectResourceIDsForDomain(allItems, cmd.Method.Resource, cmd.Service.Domain)
 			envelope := ListEnvelope{
 				Items:         allItems,
