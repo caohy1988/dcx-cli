@@ -1,0 +1,52 @@
+[[recipes]]
+name = "bigquery-table-inventory"
+title = "Inventory and inspect BigQuery tables"
+description = "List datasets, enumerate tables, inspect a table schema, and run a bounded validation query."
+services = ["bigquery"]
+steps = [
+  "dcx datasets list --project-id $PROJECT_ID --format json",
+  "dcx tables list --project-id $PROJECT_ID --dataset-id $DATASET_ID --page-all --page-limit 10 --format json",
+  "dcx tables get --project-id $PROJECT_ID --dataset-id $DATASET_ID --table-id $TABLE_ID --output-fields tableReference,schema --format json",
+  "dcx jobs query --project-id $PROJECT_ID --location $LOCATION --query \"SELECT COUNT(*) AS row_count FROM $DATASET_ID.$TABLE_ID\" --max-results 1 --format json"
+]
+cautions = [
+  "Keep --page-limit finite unless the caller explicitly needs a full inventory.",
+  "Use --output-fields for schema-only inspection to avoid sending unnecessary table metadata to the agent context."
+]
+
+[[recipes]]
+name = "spanner-schema-migration"
+title = "Apply and verify a Spanner schema migration"
+description = "Capture the current DDL, dry-run a migration file, apply it with an idempotent operation ID, wait for completion, and verify the resulting DDL."
+services = ["spanner"]
+steps = [
+  "dcx spanner databases get-ddl --project-id $PROJECT_ID --instance-id $INSTANCE_ID --database-id $DATABASE_ID --format json",
+  "dcx spanner databases update-ddl --project-id $PROJECT_ID --instance-id $INSTANCE_ID --database-id $DATABASE_ID --ddl-file schema.sql --operation-id migration-001 --dry-run --format json",
+  "dcx spanner databases update-ddl --project-id $PROJECT_ID --instance-id $INSTANCE_ID --database-id $DATABASE_ID --ddl-file schema.sql --operation-id migration-001 --format json",
+  "dcx spanner operations wait --project-id $PROJECT_ID --operation-name $OPERATION_NAME --timeout 120 --poll-interval 5 --format json",
+  "dcx spanner databases get-ddl --project-id $PROJECT_ID --instance-id $INSTANCE_ID --database-id $DATABASE_ID --format json"
+]
+cautions = [
+  "Always set --operation-id for retryable migrations.",
+  "Run the dry-run step before the mutating update-ddl step in unattended workflows."
+]
+
+[[recipes]]
+name = "cross-service-ca-source-onboarding"
+title = "Validate source profiles and bootstrap a CA data agent"
+description = "Validate source profiles, inspect database and BigQuery schemas, then create a Conversational Analytics data agent with a verified query."
+services = ["profiles", "spanner", "alloydb", "cloudsql", "bigquery", "ca"]
+steps = [
+  "dcx profiles validate --format json",
+  "dcx profiles test --format json",
+  "dcx spanner schema describe --profile spanner-finance.yaml --format json",
+  "dcx alloydb schema describe --profile alloydb-ops.yaml --format json",
+  "dcx cloudsql schema describe --profile cloudsql-app.yaml --format json",
+  "dcx tables get --project-id $PROJECT_ID --dataset-id $DATASET_ID --table-id $TABLE_ID --output-fields tableReference,schema --format json",
+  "dcx ca create-agent --project-id $PROJECT_ID --name data-agent --tables $PROJECT_ID.$DATASET_ID.$TABLE_ID --instructions \"Answer using verified source schemas only.\" --format json",
+  "dcx ca add-verified-query --project-id $PROJECT_ID --agent data-agent --question \"How many rows are in the table?\" --query \"SELECT COUNT(*) AS row_count FROM $DATASET_ID.$TABLE_ID\" --format json"
+]
+cautions = [
+  "Run profile validation before creating or updating CA agents.",
+  "Keep verified queries narrow and source-specific so later agent answers stay auditable."
+]

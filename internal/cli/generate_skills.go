@@ -9,6 +9,7 @@ import (
 
 	"github.com/haiyuan-eng-google/dcx-cli/internal/contracts"
 	dcxerrors "github.com/haiyuan-eng-google/dcx-cli/internal/errors"
+	"github.com/haiyuan-eng-google/dcx-cli/recipes"
 	"github.com/spf13/cobra"
 )
 
@@ -32,8 +33,9 @@ func (a *App) addGenerateSkillsCommand() {
 		Use:   "generate-skills",
 		Short: "Generate SKILL.md files from the command contract registry",
 		Long: `Generate SKILL.md files for each domain from the machine-readable
-contract registry. Each skill file includes command routing tables,
-flag details, and decision rules derived from the live contracts.
+contract registry and the embedded workflow recipe registry. Each skill
+file includes command routing tables, workflow recipes, flag details, and
+decision rules derived from the live contracts.
 
 By default writes to stdout. Use --out-dir to write files to a directory.`,
 		RunE: func(cobraCmd *cobra.Command, args []string) error {
@@ -45,6 +47,11 @@ By default writes to stdout. Use --out-dir to write files to a directory.`,
 
 			// Group by domain.
 			byDomain := groupByDomain(all)
+			allRecipes, err := recipes.Load()
+			if err != nil {
+				dcxerrors.Emit(dcxerrors.Internal, fmt.Sprintf("loading recipes: %v", err), "")
+				return nil
+			}
 
 			// Filter domains if specified.
 			if len(domains) > 0 {
@@ -63,12 +70,12 @@ By default writes to stdout. Use --out-dir to write files to a directory.`,
 			}
 
 			if outDir != "" {
-				return writeSkillFiles(byDomain, outDir)
+				return writeSkillFiles(byDomain, allRecipes, outDir)
 			}
 
 			// Write to stdout.
 			for _, domain := range sortedDomainKeys(byDomain) {
-				content := renderSkill(domain, byDomain[domain])
+				content := renderSkill(domain, byDomain[domain], recipes.ForDomain(allRecipes, domain))
 				fmt.Println(content)
 				fmt.Println("---")
 			}
@@ -113,9 +120,9 @@ func sortedDomainKeys(m map[string][]*contracts.CommandContract) []string {
 	return keys
 }
 
-func writeSkillFiles(byDomain map[string][]*contracts.CommandContract, outDir string) error {
+func writeSkillFiles(byDomain map[string][]*contracts.CommandContract, allRecipes []recipes.Recipe, outDir string) error {
 	for _, domain := range sortedDomainKeys(byDomain) {
-		content := renderSkill(domain, byDomain[domain])
+		content := renderSkill(domain, byDomain[domain], recipes.ForDomain(allRecipes, domain))
 		dir := filepath.Join(outDir, "dcx-"+domain)
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return fmt.Errorf("creating directory %s: %w", dir, err)
@@ -129,7 +136,7 @@ func writeSkillFiles(byDomain map[string][]*contracts.CommandContract, outDir st
 	return nil
 }
 
-func renderSkill(domain string, cmds []*contracts.CommandContract) string {
+func renderSkill(domain string, cmds []*contracts.CommandContract, domainRecipes []recipes.Recipe) string {
 	var b strings.Builder
 
 	domainTitle := domainDisplayName(domain)
@@ -187,6 +194,25 @@ func renderSkill(domain string, cmds []*contracts.CommandContract) string {
 		}
 		if hasDryRun {
 			b.WriteString("Mutations marked with `--dry-run` support previewing the request without executing.\n\n")
+		}
+	}
+
+	if len(domainRecipes) > 0 {
+		b.WriteString("## Workflows\n\n")
+		for _, recipe := range domainRecipes {
+			b.WriteString(fmt.Sprintf("### %s\n\n", recipe.Title))
+			b.WriteString(recipe.Description)
+			b.WriteString("\n\n")
+			for i, step := range recipe.Steps {
+				b.WriteString(fmt.Sprintf("%d. `%s`\n", i+1, step))
+			}
+			if len(recipe.Cautions) > 0 {
+				b.WriteString("\nCautions:\n")
+				for _, caution := range recipe.Cautions {
+					b.WriteString(fmt.Sprintf("- %s\n", caution))
+				}
+			}
+			b.WriteString("\n")
 		}
 	}
 
