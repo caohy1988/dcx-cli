@@ -118,8 +118,8 @@ func EmitWithExit(code ErrorCode, message, hint string, exitCode int) {
 	envelope := ErrorEnvelope{
 		Error: ErrorDetail{
 			Code:      code,
-			Message:   message,
-			Hint:      hint,
+			Message:   sanitizeErrorText(message),
+			Hint:      sanitizeErrorText(hint),
 			ExitCode:  exitCode,
 			Retryable: RetryableFor(code),
 			Status:    "error",
@@ -151,7 +151,10 @@ func New(code ErrorCode, message, hint string) ErrorEnvelope {
 }
 
 // Write writes the envelope as JSON to stderr without exiting.
+// Sanitizes message and hint before writing.
 func (e ErrorEnvelope) Write() {
+	e.Error.Message = sanitizeErrorText(e.Error.Message)
+	e.Error.Hint = sanitizeErrorText(e.Error.Hint)
 	data, err := json.Marshal(e)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, `{"error":{"code":"INTERNAL","message":"failed to marshal error","exit_code":2,"retryable":false,"status":"error"}}`)
