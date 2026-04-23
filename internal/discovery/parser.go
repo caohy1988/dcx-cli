@@ -28,6 +28,7 @@ type discoveryMethod struct {
 	Parameters     map[string]discoveryParam `json:"parameters"`
 	ParameterOrder []string                  `json:"parameterOrder"`
 	Request        *discoveryRef             `json:"request,omitempty"`
+	Response       *discoveryRef             `json:"response,omitempty"`
 }
 
 type discoveryRef struct {
@@ -85,9 +86,12 @@ func extractMethods(
 				continue
 			}
 
-			var requestRef string
+			var requestRef, responseRef string
 			if method.Request != nil {
 				requestRef = method.Request.Ref
+			}
+			if method.Response != nil {
+				responseRef = method.Response.Ref
 			}
 
 			apiMethod := ApiMethod{
@@ -101,6 +105,7 @@ func extractMethods(
 				Parameters:     convertParams(method.Parameters),
 				ParameterOrder: method.ParameterOrder,
 				RequestRef:     requestRef,
+				ResponseRef:    responseRef,
 			}
 
 			// Build command path.
