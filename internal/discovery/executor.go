@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/haiyuan-eng-google/dcx-cli/internal/auth"
 	dcxerrors "github.com/haiyuan-eng-google/dcx-cli/internal/errors"
@@ -27,6 +28,8 @@ type Executor struct {
 	HTTPClient   *http.Client
 	OutputFields string // comma-separated fields to include in output
 	MaxRetries   int    // 0 = no retry
+	PageLimit    int    // max pages to fetch with --page-all (0 = unlimited)
+	PageDelayMs  int    // milliseconds between page fetches
 }
 
 // NewExecutor creates an Executor with the given HTTP client.
@@ -129,6 +132,7 @@ func (e *Executor) executePageAll(
 ) error {
 	var allItems []interface{}
 	pageToken := ""
+	pagesFetched := 0
 
 	for {
 		params := make(map[string]string, len(queryParams))
@@ -171,12 +175,31 @@ func (e *Executor) executePageAll(
 
 		items := extractItems(raw)
 		allItems = append(allItems, items...)
+		pagesFetched++
 
 		// Check for next page.
-		if npt, ok := raw["nextPageToken"].(string); ok && npt != "" {
-			pageToken = npt
-		} else {
+		npt, hasMore := raw["nextPageToken"].(string)
+		if !hasMore || npt == "" {
 			break
+		}
+
+		// Check page limit (0 = unlimited).
+		if e.PageLimit > 0 && pagesFetched >= e.PageLimit {
+			// Stopped by limit — include token so agents can continue.
+			allItems = injectResourceIDsForDomain(allItems, cmd.Method.Resource, cmd.Service.Domain)
+			envelope := ListEnvelope{
+				Items:         allItems,
+				Source:        sourceName(cmd.Service.Domain),
+				NextPageToken: npt,
+			}
+			return output.RenderFiltered(format, envelope, e.OutputFields)
+		}
+
+		pageToken = npt
+
+		// Delay between pages.
+		if e.PageDelayMs > 0 {
+			time.Sleep(time.Duration(e.PageDelayMs) * time.Millisecond)
 		}
 	}
 

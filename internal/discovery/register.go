@@ -90,6 +90,8 @@ func registerOneCommand(
 	boolFlagValues := make(map[string]*bool)
 	pageToken := ""
 	pageAll := false
+	pageLimit := 10
+	pageDelayMs := 100
 	bodyFlag := ""
 	forceFlag := false
 	isMutation := cmd.Method.IsMutation()
@@ -145,6 +147,8 @@ func registerOneCommand(
 			if opts.Retry != nil {
 				executor.MaxRetries = *opts.Retry
 			}
+			executor.PageLimit = pageLimit
+			executor.PageDelayMs = pageDelayMs
 
 			return executor.Execute(
 				context.Background(),
@@ -176,6 +180,8 @@ func registerOneCommand(
 	if cmd.Method.Action == "list" && methodSupportsPagination(cmd) {
 		leafCmd.Flags().StringVar(&pageToken, "page-token", "", "Page token for pagination")
 		leafCmd.Flags().BoolVar(&pageAll, "page-all", false, "Fetch all pages")
+		leafCmd.Flags().IntVar(&pageLimit, "page-limit", 10, "Max pages to fetch with --page-all (0=unlimited)")
+		leafCmd.Flags().IntVar(&pageDelayMs, "page-delay", 100, "Milliseconds between page fetches")
 	}
 
 	// Add mutation-specific flags.
@@ -204,6 +210,8 @@ func registerOneCommand(
 		contractFlags = append(contractFlags,
 			contracts.FlagContract{Name: "page-token", Type: "string", Description: "Page token for pagination"},
 			contracts.FlagContract{Name: "page-all", Type: "bool", Description: "Fetch all pages"},
+			contracts.FlagContract{Name: "page-limit", Type: "int", Description: "Max pages to fetch with --page-all (0=unlimited)"},
+			contracts.FlagContract{Name: "page-delay", Type: "int", Description: "Milliseconds between page fetches"},
 		)
 	}
 	if isMutation && cmd.Method.AcceptsBody() {
