@@ -18,6 +18,7 @@ type FlagContract struct {
 	Description string `json:"description"`
 	Required    bool   `json:"required"`
 	Default     string `json:"default,omitempty"`
+	Positional  bool   `json:"positional,omitempty"` // true for positional args (not --flag style)
 }
 
 // CommandContract is the machine-readable specification for a single command.
