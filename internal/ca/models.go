@@ -106,6 +106,12 @@ type AddVerifiedQueryResult struct {
 	Status               string `json:"status"`
 }
 
+// DeleteAgentResult is the output of ca delete-agent.
+type DeleteAgentResult struct {
+	AgentID string `json:"agent_id"`
+	Status  string `json:"status"`
+}
+
 // AskResult is the unified output for ca ask across all source types.
 type AskResult struct {
 	Question    string      `json:"question"`

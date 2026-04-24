@@ -27,6 +27,7 @@ func (a *App) addCACommands() {
 	caCmd.AddCommand(a.caCreateAgentCmd())
 	caCmd.AddCommand(a.caListAgentsCmd())
 	caCmd.AddCommand(a.caAddVerifiedQueryCmd())
+	caCmd.AddCommand(a.caDeleteAgentCmd())
 	a.Root.AddCommand(caCmd)
 
 	a.Registry.Register(contracts.BuildContract(
@@ -64,6 +65,15 @@ func (a *App) addCACommands() {
 			{Name: "agent", Type: "string", Description: "Data agent name", Required: true},
 			{Name: "question", Type: "string", Description: "Natural language question", Required: true},
 			{Name: "query", Type: "string", Description: "SQL query", Required: true},
+		},
+		true, false,
+	))
+	a.Registry.Register(contracts.BuildContract(
+		"ca delete-agent", "ca",
+		"Delete a data agent",
+		[]contracts.FlagContract{
+			{Name: "name", Type: "string", Description: "Agent ID to delete", Required: true},
+			{Name: "force", Type: "bool", Description: "Skip confirmation prompt"},
 		},
 		true, false,
 	))
@@ -344,6 +354,88 @@ func (a *App) caAddVerifiedQueryCmd() *cobra.Command {
 	cmd.Flags().StringVar(&query, "query", "", "SQL query (required)")
 
 	return cmd
+}
+
+func (a *App) caDeleteAgentCmd() *cobra.Command {
+	var name string
+	var force bool
+
+	cmd := &cobra.Command{
+		Use:   "delete-agent",
+		Short: "Delete a data agent",
+		RunE: func(cobraCmd *cobra.Command, args []string) error {
+			if name == "" {
+				dcxerrors.Emit(dcxerrors.MissingArgument, "required flag --name is missing", "")
+				return nil
+			}
+
+			format, err := a.OutputFormat()
+			if err != nil {
+				dcxerrors.Emit(dcxerrors.InvalidConfig, err.Error(), "")
+				return nil
+			}
+
+			// Confirmation for destructive operation.
+			if !force {
+				if err := confirmDelete("ca delete-agent", name); err != nil {
+					dcxerrors.Emit(dcxerrors.MissingArgument, err.Error(), "Use --force to skip confirmation")
+					return nil
+				}
+			}
+
+			ctx := context.Background()
+			resolved, err := auth.Resolve(ctx, a.AuthConfig())
+			if err != nil {
+				dcxerrors.Emit(dcxerrors.AuthError, err.Error(), "")
+				return nil
+			}
+			tok, err := resolved.TokenSource.Token()
+			if err != nil {
+				dcxerrors.Emit(dcxerrors.AuthError, fmt.Sprintf("failed to obtain token: %v", err), "")
+				return nil
+			}
+
+			projectID := a.Opts.ProjectID
+			if projectID == "" {
+				dcxerrors.Emit(dcxerrors.MissingArgument, "required flag --project-id is missing", "")
+				return nil
+			}
+
+			client := ca.NewClient(nil, a.Opts.Retry)
+			result, err := client.DeleteAgent(ctx, tok.AccessToken, projectID, name)
+			if err != nil {
+				dcxerrors.EmitAPIError(err)
+				return nil
+			}
+
+			return a.Render(format, result)
+		},
+	}
+
+	cmd.Flags().StringVar(&name, "name", "", "Agent ID to delete (required)")
+	cmd.Flags().BoolVar(&force, "force", false, "Skip confirmation prompt")
+
+	return cmd
+}
+
+// confirmDelete checks for TTY confirmation on destructive operations.
+func confirmDelete(command, resourceID string) error {
+	if !isTerminal() {
+		return fmt.Errorf("DELETE requires --force when stdin is not a terminal")
+	}
+	fmt.Fprintf(os.Stderr, "This will delete %s %s. Continue? [y/N] ", command, resourceID)
+	var response string
+	fmt.Scanln(&response)
+	response = strings.TrimSpace(strings.ToLower(response))
+	if response != "y" && response != "yes" {
+		return fmt.Errorf("aborted by user")
+	}
+	return nil
+}
+
+func isTerminal() bool {
+	fi, _ := os.Stdin.Stat()
+	return fi.Mode()&os.ModeCharDevice != 0
 }
 
 func splitCSV(s string) []string {

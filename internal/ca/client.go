@@ -598,6 +598,37 @@ func (c *Client) AddVerifiedQuery(ctx context.Context, token, projectID, _ strin
 	}, nil
 }
 
+// DeleteAgent deletes a data agent. Agent management always uses locations/global.
+func (c *Client) DeleteAgent(ctx context.Context, token, projectID, agentID string) (*DeleteAgentResult, error) {
+	if projectID == "" {
+		return nil, fmt.Errorf("project ID is required")
+	}
+
+	agentResourceName := fmt.Sprintf("projects/%s/locations/global/dataAgents/%s", projectID, agentID)
+	deleteURL := fmt.Sprintf(dataAgentURLFmt, agentResourceName)
+
+	req, err := http.NewRequestWithContext(ctx, "DELETE", deleteURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := c.do(req)
+	if err != nil {
+		return nil, fmt.Errorf("delete-agent API request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		return nil, readAPIError(resp)
+	}
+
+	return &DeleteAgentResult{
+		AgentID: agentID,
+		Status:  "deleted",
+	}, nil
+}
+
 // parseAgentSummary extracts a summary from a raw DataAgent JSON map.
 func parseAgentSummary(m map[string]interface{}) AgentSummary {
 	agent := AgentSummary{}
