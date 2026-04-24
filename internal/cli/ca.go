@@ -31,9 +31,9 @@ func (a *App) addCACommands() {
 
 	a.Registry.Register(contracts.BuildContract(
 		"ca ask", "ca",
-		"Ask a natural-language question across Data Cloud sources",
+		"Ask a natural-language question across Data Cloud sources. Usage: dcx ca ask \"<question>\" [flags]",
 		[]contracts.FlagContract{
-			{Name: "question", Type: "string", Description: "Natural language question (positional argument)", Required: true},
+			{Name: "question", Type: "string", Description: "Natural language question", Required: true, Positional: true},
 			{Name: "profile", Type: "string", Description: "Source profile name or path"},
 			{Name: "agent", Type: "string", Description: "Data agent name (BigQuery)"},
 			{Name: "tables", Type: "string", Description: "Comma-separated table refs (BigQuery)"},

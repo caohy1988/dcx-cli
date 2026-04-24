@@ -271,6 +271,14 @@ func renderSkill(domain string, cmds []*contracts.CommandContract, domainRecipes
 	}
 	b.WriteString("- Use `dcx meta describe <command>` for the full contract of any command\n")
 
+	// Domain-specific notes.
+	if domain == "ca" {
+		b.WriteString("\n## Notes\n\n")
+		b.WriteString("- `ca ask` takes the question as a **positional argument**, not a flag: `dcx ca ask \"your question\" [flags]`\n")
+		b.WriteString("- Use `--format text` for real-time streaming of thinking steps and SQL (displayed on stderr)\n")
+		b.WriteString("- Use `--format json` for structured output without streaming (complete result on stdout)\n")
+	}
+
 	return b.String()
 }
 
@@ -350,7 +358,7 @@ func nonGlobalFlags(c *contracts.CommandContract) []contracts.FlagContract {
 	}
 	var result []contracts.FlagContract
 	for _, f := range c.Flags {
-		if !globalFlags[f.Name] {
+		if !globalFlags[f.Name] && !f.Positional {
 			result = append(result, f)
 		}
 	}
