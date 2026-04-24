@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/haiyuan-eng-google/dcx-cli/assets"
 	"github.com/haiyuan-eng-google/dcx-cli/internal/auth"
 	"github.com/haiyuan-eng-google/dcx-cli/internal/contracts"
 	dcxerrors "github.com/haiyuan-eng-google/dcx-cli/internal/errors"
@@ -94,6 +95,7 @@ func registerOneCommand(
 	pageDelayMs := 100
 	bodyFlag := ""
 	forceFlag := false
+	noValidate := false
 	isMutation := cmd.Method.IsMutation()
 
 	leafCmd := &cobra.Command{
@@ -133,7 +135,7 @@ func registerOneCommand(
 
 			// For mutations: validate body, check confirmation, handle dry-run.
 			if isMutation {
-				return executeMutationFlow(executor, cmd, *opts, globalFlags, queryParams, bodyFlag, forceFlag, format)
+				return executeMutationFlow(executor, cmd, *opts, globalFlags, queryParams, bodyFlag, forceFlag, noValidate, format)
 			}
 
 			authCfg := auth.Config{
@@ -189,6 +191,7 @@ func registerOneCommand(
 	if isMutation {
 		if cmd.Method.AcceptsBody() {
 			leafCmd.Flags().StringVar(&bodyFlag, "body", "", "JSON request body (or @file.json)")
+			leafCmd.Flags().BoolVar(&noValidate, "no-validate", false, "Skip request body schema validation")
 		}
 		if cmd.Method.RequiresConfirmation() {
 			leafCmd.Flags().BoolVar(&forceFlag, "force", false, "Skip confirmation prompt")
@@ -218,6 +221,7 @@ func registerOneCommand(
 	if isMutation && cmd.Method.AcceptsBody() {
 		contractFlags = append(contractFlags,
 			contracts.FlagContract{Name: "body", Type: "string", Description: "JSON request body (or @file.json)", Required: true},
+			contracts.FlagContract{Name: "no-validate", Type: "bool", Description: "Skip request body schema validation"},
 		)
 	}
 	if isMutation && cmd.Method.RequiresConfirmation() {
@@ -246,6 +250,7 @@ func executeMutationFlow(
 	queryParams map[string]string,
 	bodyFlag string,
 	force bool,
+	noValidate bool,
 	format output.Format,
 ) error {
 	// 1. Load and validate body if the method accepts one.
@@ -260,6 +265,17 @@ func executeMutationFlow(
 		if err != nil {
 			dcxerrors.Emit(dcxerrors.InvalidConfig, err.Error(), "")
 			return nil
+		}
+
+		// Schema validation: check body against Discovery schema.
+		if !noValidate && cmd.Method.RequestRef != "" {
+			docJSON, docErr := assets.DiscoveryDocForDomain(cmd.Service.Domain)
+			if docErr == nil {
+				if validationErrors := ValidateTopLevelProperties(bodyBytes, cmd.Method.RequestRef, docJSON); len(validationErrors) > 0 {
+					dcxerrors.Emit(dcxerrors.InvalidConfig, FormatValidationErrors(validationErrors), "Use --no-validate to skip schema validation")
+					return nil
+				}
+			}
 		}
 	}
 
