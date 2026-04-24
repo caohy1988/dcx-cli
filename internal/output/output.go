@@ -232,15 +232,88 @@ func toStringMap(v interface{}) (map[string]interface{}, bool) {
 }
 
 func renderText(value interface{}) error {
-	var s string
 	switch v := value.(type) {
 	case string:
-		s = v
+		fmt.Fprintln(os.Stdout, Sanitize(v))
 	case []byte:
-		s = string(v)
+		fmt.Fprintln(os.Stdout, Sanitize(string(v)))
 	default:
-		s = fmt.Sprintf("%v", v)
+		// Normalize through JSON to use struct tags and produce
+		// readable output instead of raw Go %v representation.
+		data, err := json.Marshal(v)
+		if err != nil {
+			fmt.Fprintln(os.Stdout, Sanitize(fmt.Sprintf("%v", v)))
+			return nil
+		}
+
+		var normalized interface{}
+		dec := json.NewDecoder(strings.NewReader(string(data)))
+		dec.UseNumber()
+		if err := dec.Decode(&normalized); err != nil {
+			fmt.Fprintln(os.Stdout, Sanitize(string(data)))
+			return nil
+		}
+
+		renderTextValue(os.Stdout, normalized, 0)
 	}
-	fmt.Fprintln(os.Stdout, Sanitize(s))
 	return nil
+}
+
+// renderTextValue recursively renders a JSON-normalized value as
+// human-readable text with indentation.
+func renderTextValue(w *os.File, value interface{}, indent int) {
+	prefix := strings.Repeat("  ", indent)
+
+	switch v := value.(type) {
+	case map[string]interface{}:
+		keys := make([]string, 0, len(v))
+		for k := range v {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			val := v[k]
+			switch val.(type) {
+			case map[string]interface{}, []interface{}:
+				fmt.Fprintf(w, "%s%s:\n", prefix, Sanitize(k))
+				renderTextValue(w, val, indent+1)
+			default:
+				fmt.Fprintf(w, "%s%s: %s\n", prefix, Sanitize(k), Sanitize(formatScalar(val)))
+			}
+		}
+	case []interface{}:
+		for i, item := range v {
+			switch item.(type) {
+			case map[string]interface{}:
+				if i > 0 {
+					fmt.Fprintf(w, "%s---\n", prefix)
+				}
+				renderTextValue(w, item, indent)
+			default:
+				fmt.Fprintf(w, "%s- %s\n", prefix, Sanitize(formatScalar(item)))
+			}
+		}
+	default:
+		fmt.Fprintf(w, "%s%s\n", prefix, Sanitize(formatScalar(v)))
+	}
+}
+
+func formatScalar(v interface{}) string {
+	switch val := v.(type) {
+	case nil:
+		return ""
+	case string:
+		return val
+	case json.Number:
+		return val.String()
+	case float64:
+		if val == float64(int64(val)) {
+			return fmt.Sprintf("%d", int64(val))
+		}
+		return fmt.Sprintf("%g", val)
+	case bool:
+		return fmt.Sprintf("%t", val)
+	default:
+		return fmt.Sprintf("%v", val)
+	}
 }
