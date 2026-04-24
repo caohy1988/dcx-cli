@@ -247,7 +247,9 @@ func renderText(value interface{}) error {
 		}
 
 		var normalized interface{}
-		if err := json.Unmarshal(data, &normalized); err != nil {
+		dec := json.NewDecoder(strings.NewReader(string(data)))
+		dec.UseNumber()
+		if err := dec.Decode(&normalized); err != nil {
 			fmt.Fprintln(os.Stdout, Sanitize(string(data)))
 			return nil
 		}
@@ -302,6 +304,8 @@ func formatScalar(v interface{}) string {
 		return ""
 	case string:
 		return val
+	case json.Number:
+		return val.String()
 	case float64:
 		if val == float64(int64(val)) {
 			return fmt.Sprintf("%d", int64(val))

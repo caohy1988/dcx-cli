@@ -186,6 +186,24 @@ func TestRenderTextMap(t *testing.T) {
 	}
 }
 
+func TestRenderTextLargeInt64(t *testing.T) {
+	// Regression: int64 above 2^53 must not be silently rounded
+	// by float64 conversion during JSON normalization.
+	type Stats struct {
+		BytesProcessed int64 `json:"bytes_processed"`
+	}
+
+	out := captureStdout(t, func() {
+		if err := Render(Text, Stats{BytesProcessed: 9007199254740993}); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	if !strings.Contains(out, "bytes_processed: 9007199254740993") {
+		t.Errorf("large int64 was corrupted: %q", out)
+	}
+}
+
 func TestRenderTable(t *testing.T) {
 	value := []map[string]interface{}{
 		{"name": "events", "location": "US"},
