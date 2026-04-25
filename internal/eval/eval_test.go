@@ -133,6 +133,7 @@ func TestCommandDiscovery(t *testing.T) {
 		// CA
 		"dcx ca ask",
 		"dcx ca create-agent", "dcx ca list-agents", "dcx ca add-verified-query",
+		"dcx ca delete-agent",
 		// Auth
 		"dcx auth check", "dcx auth status",
 		// Profiles
@@ -157,8 +158,8 @@ func TestCommandDiscovery(t *testing.T) {
 		}
 	}
 
-	if len(commands) < 85 {
-		t.Errorf("expected at least 85 commands, got %d", len(commands))
+	if len(commands) < 86 {
+		t.Errorf("expected at least 86 commands, got %d", len(commands))
 	}
 }
 
