@@ -880,7 +880,12 @@ func (s *Server) handleBatch(req JSONRPCRequest, params ToolCallParams) {
 			args = argsMap
 		}
 		rm := "full"
-		if rmRaw, ok := m["result_mode"]; ok && rmRaw != nil {
+		if rmRaw, ok := m["result_mode"]; ok {
+			if rmRaw == nil {
+				s.writeError(req.ID, -32602, "Invalid params",
+					fmt.Sprintf("step %d: \"result_mode\" must be a string, got null", i))
+				return
+			}
 			rmStr, isStr := rmRaw.(string)
 			if !isStr {
 				s.writeError(req.ID, -32602, "Invalid params",
